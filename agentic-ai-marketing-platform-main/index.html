@@ -613,6 +613,7 @@
                     updateConnectionStatus('connected');
                     showNotification('✅ Connected to AI agents successfully!', 'success');
                     updateStats();
+                    loadAgentStatus();
                 } else {
                     throw new Error('Invalid response');
                 }
@@ -905,4 +906,12 @@
             setTimeout(() => {
                 notification.remove();
             }, 4000);
-        
+        }
+
+        // Initialize everything when page loads
+        console.log('🚀 AI Marketing Command Center initialized');
+        console.log('🔗 Connecting to Oracle Cloud AI agents at:', API_BASE_URL);
+        console.log('📊 Supabase database configured');
+    </script>
+</body>
+</html>
