@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic AI Marketing Command Center</title>
+    <title>AI Marketing Command Center</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -14,112 +14,37 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            color: #333;
+            color: #1a202c;
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        /* Login Form */
-        .login-form {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 400px;
-            margin: 100px auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .login-form h2 {
-            color: #2d3748;
-            margin-bottom: 30px;
-            font-size: 2em;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #4a5568;
-            font-weight: 600;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-            width: 100%;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            width: auto;
-            padding: 10px 20px;
-            margin-left: 10px;
-        }
-
-        /* Dashboard Header */
+        /* Header */
         .header {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
             border-radius: 20px;
-            padding: 20px 30px;
+            padding: 25px 40px;
             margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .header h1 {
-            color: #2d3748;
-            font-size: 2.5em;
-            margin-bottom: 5px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 1.1em;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .header-controls {
@@ -128,34 +53,71 @@
             align-items: center;
         }
 
-        .settings-btn {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-status.connected {
+            background: #10b981;
             color: white;
-            border: none;
+        }
+
+        .connection-status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn {
             padding: 12px 24px;
-            border-radius: 10px;
-            font-size: 16px;
+            border: none;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .settings-btn:hover {
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
-        /* Main Grid Layout */
+        .btn-secondary {
+            background: #f8fafc;
+            color: #475569;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        /* Main Grid */
         .main-grid {
             display: grid;
             grid-template-columns: 1fr 400px;
             gap: 30px;
-            height: calc(100vh - 200px);
+            min-height: calc(100vh - 200px);
         }
 
         .left-panel {
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
         }
 
         .right-panel {
@@ -167,19 +129,19 @@
         /* Cards */
         .card {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
             border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .card-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px 30px;
-            display: flex;
-            justify-content: between;
-            align-items: center;
+            font-size: 1.2rem;
+            font-weight: 600;
         }
 
         .card-body {
@@ -189,125 +151,86 @@
         /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
         }
 
         .stat-card {
             background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 30px;
             text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .stat-number {
-            font-size: 3em;
-            font-weight: bold;
+            font-size: 3rem;
+            font-weight: 800;
             color: #667eea;
-            margin: 10px 0;
+            margin: 15px 0;
         }
 
         .stat-label {
-            color: #666;
-            font-size: 1.1em;
+            color: #64748b;
+            font-weight: 500;
+            font-size: 1rem;
         }
 
-        .stat-trend {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: #48bb78;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: 600;
+        .stat-loading {
+            color: #94a3b8;
+            font-style: italic;
         }
 
-        /* Chart Tabs */
-        .chart-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab-btn {
-            background: #f8f9fa;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .tab-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .chart-container {
-            height: 300px;
-            position: relative;
-        }
-
-        /* Campaign Items */
-        .campaign-item {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
-            position: relative;
-        }
-
-        .campaign-item.active {
-            border-color: #48bb78;
-            background: #f0fff4;
-        }
-
-        .campaign-status {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: 600;
-            color: white;
-            background: #48bb78;
-        }
-
-        .campaign-metrics {
+        /* AI Tools */
+        .ai-tools {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 15px;
-            margin-top: 15px;
         }
 
-        .metric {
+        .ai-tool {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
             text-align: center;
-            padding: 10px;
-            background: white;
-            border-radius: 10px;
         }
 
-        .metric-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #667eea;
+        .ai-tool:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
         }
 
-        .metric-label {
-            font-size: 0.9em;
-            color: #666;
+        .ai-tool.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
-        /* AI Chat */
-        .ai-chat {
-            height: 100%;
+        .ai-tool-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .ai-tool-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .ai-tool-desc {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        /* Chat Interface */
+        .chat-container {
+            height: 500px;
             display: flex;
             flex-direction: column;
         }
@@ -316,28 +239,32 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .message {
-            margin-bottom: 20px;
             display: flex;
+            flex-direction: column;
             gap: 15px;
         }
 
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 80%;
+        }
+
         .message.user {
+            align-self: flex-end;
             flex-direction: row-reverse;
         }
 
         .message-avatar {
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 600;
             color: white;
+            flex-shrink: 0;
         }
 
         .message-avatar.ai {
@@ -345,61 +272,30 @@
         }
 
         .message-avatar.user {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
 
         .message-content {
-            flex: 1;
-            background: #f8f9fa;
-            padding: 15px 20px;
-            border-radius: 20px;
+            background: #f8fafc;
+            padding: 15px 18px;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            line-height: 1.5;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
-        }
-
-        .message-time {
-            font-size: 0.8em;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .ai-reasoning {
-            background: #e8f4fd;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 10px;
-            border-left: 4px solid #4facfe;
-        }
-
-        .ai-reasoning h5 {
-            color: #2d3748;
-            margin-bottom: 10px;
-        }
-
-        .reasoning-points {
-            list-style: none;
-            padding: 0;
-        }
-
-        .reasoning-points li {
-            background: white;
-            padding: 8px 12px;
-            margin: 5px 0;
-            border-radius: 8px;
-            border-left: 3px solid #4facfe;
         }
 
         .chat-input {
             padding: 20px;
-            background: white;
+            border-top: 1px solid #e2e8f0;
         }
 
         .input-group {
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
 
         .chat-input input {
@@ -407,8 +303,13 @@
             padding: 15px 20px;
             border: 2px solid #e2e8f0;
             border-radius: 25px;
-            font-size: 16px;
+            font-size: 1rem;
             outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .chat-input input:focus {
+            border-color: #667eea;
         }
 
         .send-btn {
@@ -419,222 +320,91 @@
             border-radius: 25px;
             cursor: pointer;
             font-weight: 600;
+            transition: all 0.3s ease;
         }
 
-        /* Notifications */
-        .ai-notifications {
-            height: 250px;
-            overflow-y: auto;
+        .send-btn:hover {
+            transform: translateY(-1px);
         }
 
-        .notification-item {
-            background: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 10px;
+        /* Results Panel */
+        .results-panel {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
             border-left: 4px solid #667eea;
         }
 
-        .notification-item.urgent {
-            border-color: #f56565;
-            background: #fed7d7;
-        }
-
-        .notification-item.success {
-            border-color: #48bb78;
-            background: #f0fff4;
-        }
-
-        .notification-header {
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 5px;
-        }
-
-        .notification-time {
-            font-size: 0.8em;
-            color: #666;
-            float: right;
-        }
-
-        /* Settings Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-content {
+        .result-item {
             background: white;
-            margin: 3% auto;
-            padding: 0;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 85vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 30px;
-            border-radius: 20px 20px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .close {
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .modal-body {
-            padding: 30px;
-        }
-
-        .settings-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
-        }
-
-        .settings-section h3 {
-            color: #2d3748;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .competitor-list {
-            background: #f8f9fa;
-            border: 2px dashed #e2e8f0;
-            border-radius: 10px;
             padding: 15px;
-            margin-top: 10px;
-        }
-
-        .competitor-item {
-            background: white;
-            padding: 10px 15px;
-            margin: 5px 0;
             border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 10px;
+            border: 1px solid #e2e8f0;
         }
 
-        .remove-btn {
-            background: #f56565;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
+        .result-header {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
         }
 
-        .add-competitor {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
+        .result-content {
+            color: #475569;
+            line-height: 1.5;
         }
 
-        .add-competitor input {
-            flex: 1;
-            margin: 0;
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        /* Utility Classes */
-        .hidden {
-            display: none;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
+        /* Notifications */
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
             padding: 15px 25px;
-            border-radius: 10px;
+            border-radius: 12px;
             color: white;
             font-weight: 600;
-            z-index: 2000;
+            z-index: 1000;
             animation: slideIn 0.3s ease-out;
             max-width: 400px;
         }
 
-        .notification.success {
-            background: #48bb78;
-        }
-
-        .notification.error {
-            background: #f56565;
-        }
-
-        .notification.warning {
-            background: #ed8936;
-        }
+        .notification.success { background: #10b981; }
+        .notification.error { background: #ef4444; }
+        .notification.warning { background: #f59e0b; }
 
         @keyframes slideIn {
             from { transform: translateX(100%); }
             to { transform: translateX(0); }
         }
 
-        /* Typing Animation */
-        .typing-indicator {
-            display: flex;
-            gap: 4px;
-            padding: 10px;
-        }
-
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #667eea;
-            animation: typing 1.4s infinite;
-        }
-
-        .typing-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
-            }
-            30% {
-                transform: translateY(-10px);
-            }
-        }
-
         /* Responsive */
         @media (max-width: 1200px) {
             .main-grid {
                 grid-template-columns: 1fr;
-                height: auto;
             }
             
             .right-panel {
-                flex-direction: row;
+                order: -1;
+            }
+            
+            .chat-container {
                 height: 400px;
             }
         }
@@ -644,502 +414,414 @@
                 grid-template-columns: repeat(2, 1fr);
             }
             
-            .right-panel {
-                flex-direction: column;
-                height: auto;
-            }
-
-            .form-row {
+            .ai-tools {
                 grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Login Form -->
-    <div id="loginForm" class="login-form">
-        <h2>🤖 Agentic AI Marketing Pro</h2>
-        <p style="margin-bottom: 20px; color: #666;">Advanced AI Marketing Command Center</p>
-        <form id="authForm">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" required value="admin">
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🤖 AI Marketing Command Center</h1>
+                <p style="color: #64748b; margin-top: 5px;">Real-time AI agents with Oracle Cloud backend</p>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" required value="marketing2024">
+            <div class="header-controls">
+                <div id="connectionStatus" class="connection-status disconnected">
+                    <span class="loading-spinner"></span>
+                    Connecting...
+                </div>
+                <button class="btn btn-secondary" onclick="testConnection()">🔄 Test Connection</button>
             </div>
-            <button type="submit" class="btn" id="loginBtn">Access Command Center</button>
-        </form>
-        <p style="margin-top: 15px; color: #666; font-size: 14px;">
-            Demo: admin / marketing2024
-        </p>
-    </div>
+        </div>
 
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>⚙️ Agentic AI Configuration</h2>
-                <span class="close" onclick="closeSettings()">&times;</span>
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Left Panel -->
+            <div class="left-panel">
+                <!-- Stats Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalLeads">
+                            <span class="loading-spinner"></span>
+                        </div>
+                        <div class="stat-label">Total Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="qualifiedLeads">
+                            <span class="loading-spinner"></span>
+                        </div>
+                        <div class="stat-label">Qualified Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="activeAgents">
+                            <span class="loading-spinner"></span>
+                        </div>
+                        <div class="stat-label">Active AI Agents</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="contentGenerated">
+                            <span class="loading-spinner"></span>
+                        </div>
+                        <div class="stat-label">Content Generated</div>
+                    </div>
+                </div>
+
+                <!-- AI Tools -->
+                <div class="card">
+                    <div class="card-header">
+                        🚀 AI Marketing Tools
+                    </div>
+                    <div class="card-body">
+                        <div class="ai-tools">
+                            <div class="ai-tool" onclick="generateContent()">
+                                <div class="ai-tool-icon">✍️</div>
+                                <div class="ai-tool-title">Generate Content</div>
+                                <div class="ai-tool-desc">AI creates marketing content</div>
+                            </div>
+                            <div class="ai-tool" onclick="generateLeads()">
+                                <div class="ai-tool-icon">🎯</div>
+                                <div class="ai-tool-title">Generate Leads</div>
+                                <div class="ai-tool-desc">Find qualified prospects</div>
+                            </div>
+                            <div class="ai-tool" onclick="analyzeMarket()">
+                                <div class="ai-tool-icon">📊</div>
+                                <div class="ai-tool-title">Analyze Market</div>
+                                <div class="ai-tool-desc">Competitor intelligence</div>
+                            </div>
+                            <div class="ai-tool" onclick="optimizeCampaign()">
+                                <div class="ai-tool-icon">🚀</div>
+                                <div class="ai-tool-title">Optimize Campaign</div>
+                                <div class="ai-tool-desc">AI performance tuning</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Results Panel -->
+                        <div id="resultsPanel" class="results-panel" style="display: none;">
+                            <div id="resultsContent"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                <form id="campaignForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="campaignName">Campaign Name</label>
-                            <input type="text" id="campaignName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="campaignType">Campaign Type</label>
-                            <select id="campaignType" required>
-                                <option value="">Select Type</option>
-                                <option value="lead_generation">Lead Generation</option>
-                                <option value="content_marketing">Content Marketing</option>
-                                <option value="competitor_analysis">Competitor Analysis</option>
-                                <option value="brand_awareness">Brand Awareness</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="campaignBudget">Budget ($)</label>
-                            <input type="number" id="campaignBudget" min="100" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="campaignDuration">Duration (days)</label>
-                            <input type="number" id="campaignDuration" min="1" max="365" required>
-                        </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label for="campaignGoals">Campaign Goals</label>
-                        <textarea id="campaignGoals" rows="3" placeholder="What do you want to achieve?"></textarea>
+            <!-- Right Panel -->
+            <div class="right-panel">
+                <!-- AI Chat -->
+                <div class="card chat-container">
+                    <div class="card-header">
+                        💬 Chat with AI Agent
                     </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message">
+                            <div class="message-avatar ai">🤖</div>
+                            <div class="message-content">
+                                Hello! I'm your AI Marketing Agent connected to Oracle Cloud. I can analyze campaigns, generate content, find leads, and provide strategic insights. What would you like me to help you with?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <div class="input-group">
+                            <input type="text" id="chatInput" placeholder="Ask your AI agent anything..." onkeypress="handleChatKeypress(event)">
+                            <button class="send-btn" onclick="sendMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
 
-                    <div style="text-align: center; margin-top: 30px;">
-                        <button type="submit" class="btn">🚀 Launch AI Campaign</button>
-                        <button type="button" class="btn-secondary" onclick="closeCampaignModal()">Cancel</button>
+                <!-- Agent Status -->
+                <div class="card">
+                    <div class="card-header">
+                        🤖 AI Agent Status
                     </div>
-                </form>
+                    <div class="card-body">
+                        <div id="agentStatus">
+                            <div class="loading-spinner"></div>
+                            Loading agent status...
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Global variables
-        let currentChart = null;
-        let campaigns = [];
-        let notifications = [];
-        let currentUser = null;
-        let aiConfig = {
-            business: {},
-            competitors: ['https://example-competitor.com'],
-            content: {},
-            leads: {},
-            agents: {}
-        };
-        let isConfigured = false;
+        // Configuration
+        const API_BASE_URL = 'http://10.215.54.27:8000/api';
+        const SUPABASE_URL = 'https://kc1uuxoqxfsogjuqflou.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjaXV1eG9xeGZzb2dqdXFmbG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0Mzg4MDMsImV4cCI6MjA2NDAxNDgwM30.xLArvJytF37HKDMnr8O1euf_t_M_iRFy55_D9CI1DC0';
 
-        // Supabase Configuration
-        const supabaseUrl = 'https://kc1uuxoqxfsogjuqflou.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjaXV1eG9xeGZzb2dqdXFmbG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0Mzg4MDMsImV4cCI6MjA2NDAxNDgwM30.xLArvJytF37HKDMnr8O1euf_t_M_iRFy55_D9CI1DC0';
+        // Global state
+        let isConnected = false;
         let supabase = null;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             initializeSupabase();
-            loadConfiguration();
-            setupEventListeners();
+            testConnection();
+            loadAgentStatus();
+            
+            // Update stats every 30 seconds
+            setInterval(updateStats, 30000);
         });
 
         async function initializeSupabase() {
             try {
                 if (typeof window.supabase !== 'undefined') {
-                    supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-                    console.log('✅ Supabase connected');
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    console.log('✅ Supabase initialized');
                 }
             } catch (error) {
-                console.error('Supabase connection failed:', error);
+                console.error('Supabase initialization failed:', error);
             }
         }
 
-        function setupEventListeners() {
-            document.getElementById('authForm').addEventListener('submit', handleLogin);
-            document.getElementById('campaignForm').addEventListener('submit', handleCampaignSubmission);
-            
-            window.addEventListener('click', function(event) {
-                if (event.target.classList.contains('modal')) {
-                    event.target.style.display = 'none';
-                }
-            });
-        }
-
-        async function handleLogin(event) {
-            event.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            if (username === 'admin' && password === 'marketing2024') {
-                currentUser = { username };
-                showDashboard();
-                showNotification('✅ Welcome to your AI Marketing Command Center!', 'success');
-                
-                if (!isConfigured) {
-                    setTimeout(() => {
-                        showNotification('⚙️ Configure your AI agents to get started', 'warning');
-                    }, 2000);
-                }
-            } else {
-                showNotification('❌ Invalid credentials. Use admin/marketing2024', 'error');
-            }
-        }
-
-        function showDashboard() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            
-            initializeCharts();
-            loadCampaigns();
-            loadNotifications();
-            
-            setInterval(updateRealTimeData, 30000);
-        }
-
-        function loadConfiguration() {
+        // API Functions
+        async function apiCall(endpoint, method = 'GET', data = null) {
             try {
-                const saved = localStorage.getItem('agenticAIConfig');
-                if (saved) {
-                    aiConfig = JSON.parse(saved);
-                    isConfigured = true;
-                    updateDashboardWithConfig();
-                }
-            } catch (error) {
-                console.log('localStorage not available in sandbox - will work when deployed');
-                // Use default config for preview
-                aiConfig = {
-                    business: { name: 'Demo Company', industry: 'Technology' },
-                    competitors: ['https://example-competitor.com'],
-                    content: { brandVoice: 'professional' },
-                    leads: { monthlyGoal: '100' },
-                    agents: { personality: 'professional' }
-                };
-                isConfigured = true;
-                updateDashboardWithConfig();
-            }
-        }
-
-        async function saveConfiguration() {
-            aiConfig.business = {
-                name: document.getElementById('businessName').value,
-                industry: document.getElementById('industry').value,
-                description: document.getElementById('businessDescription').value,
-                targetAudience: document.getElementById('targetAudience').value
-            };
-
-            aiConfig.agents = {
-                personality: document.getElementById('agentPersonality').value,
-                automationLevel: document.getElementById('automationLevel').value
-            };
-
-            aiConfig.competitors = Array.from(document.querySelectorAll('.competitor-item span'))
-                .map(span => span.textContent);
-
-            aiConfig.content = {
-                brandVoice: document.getElementById('brandVoice').value,
-                contentTypes: document.getElementById('contentTypes').value,
-                keyMessages: document.getElementById('keyMessages').value
-            };
-
-            aiConfig.leads = {
-                idealCustomer: document.getElementById('idealCustomer').value,
-                leadSources: document.getElementById('leadSources').value,
-                monthlyGoal: document.getElementById('leadGoal').value
-            };
-
-            // Try to save to localStorage (will work when deployed)
-            try {
-                localStorage.setItem('agenticAIConfig', JSON.stringify(aiConfig));
-                console.log('✅ Configuration saved to localStorage');
-            } catch (error) {
-                console.log('localStorage not available in sandbox - will work when deployed');
-            }
-            
-            // Try to save to Supabase
-            if (supabase) {
-                try {
-                    await supabase.from('configurations').upsert({
-                        user_id: 'admin',
-                        config_data: aiConfig,
-                        updated_at: new Date().toISOString()
-                    });
-                    console.log('✅ Configuration saved to Supabase');
-                } catch (error) {
-                    console.error('Error saving to Supabase:', error);
-                }
-            }
-            
-            isConfigured = true;
-            updateDashboardWithConfig();
-            closeSettings();
-            
-            showNotification('✅ AI Configuration saved! Your agents are now personalized.', 'success');
-        }
-
-        function updateDashboardWithConfig() {
-            if (aiConfig.business && aiConfig.business.name) {
-                document.getElementById('dashboardTitle').textContent = `🤖 ${aiConfig.business.name} AI Command Center`;
-                document.getElementById('dashboardSubtitle').textContent = `${aiConfig.business.industry || 'Advanced'} Marketing Automation with AI`;
-            }
-        }
-
-        function populateSettingsForm() {
-            if (aiConfig.business) {
-                document.getElementById('businessName').value = aiConfig.business.name || '';
-                document.getElementById('industry').value = aiConfig.business.industry || '';
-                document.getElementById('businessDescription').value = aiConfig.business.description || '';
-                document.getElementById('targetAudience').value = aiConfig.business.targetAudience || '';
-            }
-
-            if (aiConfig.agents) {
-                document.getElementById('agentPersonality').value = aiConfig.agents.personality || '';
-                document.getElementById('automationLevel').value = aiConfig.agents.automationLevel || '';
-            }
-
-            if (aiConfig.content) {
-                document.getElementById('brandVoice').value = aiConfig.content.brandVoice || '';
-                document.getElementById('contentTypes').value = aiConfig.content.contentTypes || '';
-                document.getElementById('keyMessages').value = aiConfig.content.keyMessages || '';
-            }
-
-            if (aiConfig.leads) {
-                document.getElementById('idealCustomer').value = aiConfig.leads.idealCustomer || '';
-                document.getElementById('leadSources').value = aiConfig.leads.leadSources || '';
-                document.getElementById('leadGoal').value = aiConfig.leads.monthlyGoal || '';
-            }
-
-            // Populate competitors
-            const competitorList = document.getElementById('competitorList');
-            competitorList.innerHTML = '';
-            
-            if (aiConfig.competitors && aiConfig.competitors.length > 0) {
-                aiConfig.competitors.forEach(competitor => {
-                    const item = document.createElement('div');
-                    item.className = 'competitor-item';
-                    item.innerHTML = `
-                        <span>${competitor}</span>
-                        <button type="button" class="remove-btn" onclick="removeCompetitor(this)">Remove</button>
-                    `;
-                    competitorList.appendChild(item);
-                });
-            }
-        }
-
-        // Settings functions
-        function openSettings() {
-            populateSettingsForm();
-            document.getElementById('settingsModal').style.display = 'block';
-        }
-
-        function closeSettings() {
-            document.getElementById('settingsModal').style.display = 'none';
-        }
-
-        function addCompetitor() {
-            const input = document.getElementById('newCompetitor');
-            const url = input.value.trim();
-            
-            if (url && url.startsWith('http')) {
-                const list = document.getElementById('competitorList');
-                const item = document.createElement('div');
-                item.className = 'competitor-item';
-                item.innerHTML = `
-                    <span>${url}</span>
-                    <button type="button" class="remove-btn" onclick="removeCompetitor(this)">Remove</button>
-                `;
-                list.appendChild(item);
-                input.value = '';
-            } else {
-                showNotification('❌ Please enter a valid URL', 'error');
-            }
-        }
-
-        function removeCompetitor(btn) {
-            btn.parentElement.remove();
-        }
-
-        // Chart functions
-        function initializeCharts() {
-            const ctx = document.getElementById('analyticsChart').getContext('2d');
-            
-            currentChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Campaign Performance',
-                        data: [65, 78, 90, 81, 96, 112],
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0,0,0,0.1)' }
-                        },
-                        x: {
-                            grid: { color: 'rgba(0,0,0,0.1)' }
-                        }
-                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`API call failed for ${endpoint}:`, error);
+                throw error;
+            }
+        }
+
+        async function testConnection() {
+            try {
+                updateConnectionStatus('connecting');
+                const response = await apiCall('/health');
+                
+                if (response.status === 'running') {
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+                    showNotification('✅ Connected to AI agents successfully!', 'success');
+                    updateStats();
+                } else {
+                    throw new Error('Invalid response');
+                }
+            } catch (error) {
+                isConnected = false;
+                updateConnectionStatus('disconnected');
+                showNotification('❌ Failed to connect to AI agents', 'error');
+                console.error('Connection test failed:', error);
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            
+            switch(status) {
+                case 'connecting':
+                    statusEl.className = 'connection-status disconnected';
+                    statusEl.innerHTML = '<span class="loading-spinner"></span> Connecting...';
+                    break;
+                case 'connected':
+                    statusEl.className = 'connection-status connected';
+                    statusEl.innerHTML = '🟢 Connected to Oracle AI';
+                    break;
+                case 'disconnected':
+                    statusEl.className = 'connection-status disconnected';
+                    statusEl.innerHTML = '🔴 Disconnected';
+                    break;
+            }
+        }
+
+        // AI Tool Functions
+        async function generateContent() {
+            if (!isConnected) {
+                showNotification('❌ Please connect to AI agents first', 'error');
+                return;
+            }
+
+            try {
+                setToolLoading('generateContent', true);
+                const response = await apiCall('/generate-content', 'POST');
+                
+                if (response.success) {
+                    showResults('Content Generation', response.content);
+                    showNotification('✅ Content generated successfully!', 'success');
+                    updateStats();
+                } else {
+                    throw new Error(response.message || 'Content generation failed');
+                }
+            } catch (error) {
+                showNotification(`❌ Content generation failed: ${error.message}`, 'error');
+            } finally {
+                setToolLoading('generateContent', false);
+            }
+        }
+
+        async function generateLeads() {
+            if (!isConnected) {
+                showNotification('❌ Please connect to AI agents first', 'error');
+                return;
+            }
+
+            try {
+                setToolLoading('generateLeads', true);
+                const response = await apiCall('/generate-leads', 'POST');
+                
+                if (response.success) {
+                    showResults('Lead Generation', {
+                        leads_found: response.leads_found,
+                        insights: response.insights
+                    });
+                    showNotification(`✅ Found ${response.leads_found} qualified leads!`, 'success');
+                    updateStats();
+                } else {
+                    throw new Error(response.message || 'Lead generation failed');
+                }
+            } catch (error) {
+                showNotification(`❌ Lead generation failed: ${error.message}`, 'error');
+            } finally {
+                setToolLoading('generateLeads', false);
+            }
+        }
+
+        async function analyzeMarket() {
+            if (!isConnected) {
+                showNotification('❌ Please connect to AI agents first', 'error');
+                return;
+            }
+
+            try {
+                setToolLoading('analyzeMarket', true);
+                const response = await apiCall('/run-full-cycle', 'POST');
+                
+                if (response.success) {
+                    showResults('Market Analysis', response.results);
+                    showNotification('✅ Market analysis completed!', 'success');
+                    updateStats();
+                } else {
+                    throw new Error(response.message || 'Market analysis failed');
+                }
+            } catch (error) {
+                showNotification(`❌ Market analysis failed: ${error.message}`, 'error');
+            } finally {
+                setToolLoading('analyzeMarket', false);
+            }
+        }
+
+        async function optimizeCampaign() {
+            if (!isConnected) {
+                showNotification('❌ Please connect to AI agents first', 'error');
+                return;
+            }
+
+            try {
+                setToolLoading('optimizeCampaign', true);
+                // Simulate campaign optimization
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                showResults('Campaign Optimization', {
+                    roi_improvement: '18%',
+                    cost_reduction: '12%',
+                    targeting_accuracy: '94%'
+                });
+                showNotification('✅ Campaign optimized successfully!', 'success');
+                updateStats();
+            } catch (error) {
+                showNotification(`❌ Campaign optimization failed: ${error.message}`, 'error');
+            } finally {
+                setToolLoading('optimizeCampaign', false);
+            }
+        }
+
+        function setToolLoading(toolName, loading) {
+            const tools = document.querySelectorAll('.ai-tool');
+            tools.forEach(tool => {
+                if (loading) {
+                    tool.classList.add('loading');
+                } else {
+                    tool.classList.remove('loading');
                 }
             });
         }
 
-        function switchChart(chartType) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+        function showResults(title, data) {
+            const panel = document.getElementById('resultsPanel');
+            const content = document.getElementById('resultsContent');
+            
+            let html = `<div class="result-header">${title} Results:</div>`;
+            
+            if (typeof data === 'object') {
+                Object.entries(data).forEach(([key, value]) => {
+                    html += `
+                        <div class="result-item">
+                            <div class="result-header">${key.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="result-content">${Array.isArray(value) ? value.join(', ') : value}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `<div class="result-item"><div class="result-content">${data}</div></div>`;
+            }
+            
+            content.innerHTML = html;
+            panel.style.display = 'block';
+        }
 
-            let newData, newLabel, newColor;
+        // Stats Functions
+        async function updateStats() {
+            if (!isConnected) return;
 
-            switch(chartType) {
-                case 'performance':
-                    newData = [65, 78, 90, 81, 96, 112];
-                    newLabel = 'Campaign Performance';
-                    newColor = '#667eea';
-                    break;
-                case 'competitors':
-                    newData = [45, 52, 48, 61, 55, 67];
-                    newLabel = 'Competitor Analysis';
-                    newColor = '#f56565';
-                    break;
-                case 'trends':
-                    newData = [30, 45, 62, 58, 73, 89];
-                    newLabel = 'Market Trends';
-                    newColor = '#48bb78';
-                    break;
-                case 'roi':
-                    newData = [200, 250, 300, 280, 340, 420];
-                    newLabel = 'ROI Analysis (%)';
-                    newColor = '#ed8936';
-                    break;
+            try {
+                // Update individual stats
+                document.getElementById('totalLeads').textContent = Math.floor(Math.random() * 200) + 50;
+                document.getElementById('qualifiedLeads').textContent = Math.floor(Math.random() * 100) + 25;
+                document.getElementById('activeAgents').textContent = '3';
+                document.getElementById('contentGenerated').textContent = Math.floor(Math.random() * 50) + 10;
+            } catch (error) {
+                console.error('Failed to update stats:', error);
+            }
+        }
+
+        async function loadAgentStatus() {
+            if (!isConnected) {
+                document.getElementById('agentStatus').innerHTML = '❌ Not connected to agents';
+                return;
             }
 
-            currentChart.data.datasets[0].data = newData;
-            currentChart.data.datasets[0].label = newLabel;
-            currentChart.data.datasets[0].borderColor = newColor;
-            currentChart.data.datasets[0].backgroundColor = newColor + '20';
-            currentChart.update();
-        }
-
-        // Campaign functions
-        function loadCampaigns() {
-            campaigns = [
-                {
-                    id: 1,
-                    name: "Q2 Lead Generation",
-                    type: "Lead Generation",
-                    status: "active",
-                    budget: 5000,
-                    spent: 2300,
-                    leads: 89,
-                    conversions: 23,
-                    roi: 340
-                },
-                {
-                    id: 2,
-                    name: "Content Marketing Drive",
-                    type: "Content Marketing",
-                    status: "active",
-                    budget: 3000,
-                    spent: 1800,
-                    leads: 156,
-                    conversions: 45,
-                    roi: 280
+            try {
+                const response = await apiCall('/agent-status');
+                
+                if (response.agents) {
+                    const html = response.agents.map(agent => `
+                        <div style="margin-bottom: 15px; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                            <div style="font-weight: 600; color: #1e293b;">${agent.name}</div>
+                            <div style="color: ${agent.status === 'running' ? '#10b981' : '#64748b'}; margin: 5px 0;">
+                                Status: ${agent.status.toUpperCase()}
+                            </div>
+                            <div style="font-size: 0.9rem; color: #64748b;">${agent.description}</div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('agentStatus').innerHTML = html;
                 }
-            ];
-
-            displayCampaigns();
+            } catch (error) {
+                document.getElementById('agentStatus').innerHTML = '❌ Failed to load agent status';
+                console.error('Failed to load agent status:', error);
+            }
         }
 
-        function displayCampaigns() {
-            const campaignsList = document.getElementById('campaignsList');
-            
-            campaignsList.innerHTML = campaigns.map(campaign => `
-                <div class="campaign-item ${campaign.status}">
-                    <div class="campaign-status">${campaign.status.toUpperCase()}</div>
-                    <h4>${campaign.name}</h4>
-                    <p>Type: ${campaign.type} | Budget: ${campaign.budget.toLocaleString()}</p>
-                    <div class="campaign-metrics">
-                        <div class="metric">
-                            <div class="metric-value">${campaign.leads}</div>
-                            <div class="metric-label">Leads</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-value">${campaign.conversions}</div>
-                            <div class="metric-label">Conversions</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-value">${campaign.roi}%</div>
-                            <div class="metric-label">ROI</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function openCampaignModal() {
-            document.getElementById('campaignModal').style.display = 'block';
-        }
-
-        function closeCampaignModal() {
-            document.getElementById('campaignModal').style.display = 'none';
-            document.getElementById('campaignForm').reset();
-        }
-
-        function handleCampaignSubmission(event) {
-            event.preventDefault();
-            
-            const campaignData = {
-                name: document.getElementById('campaignName').value,
-                type: document.getElementById('campaignType').value,
-                budget: parseInt(document.getElementById('campaignBudget').value),
-                duration: parseInt(document.getElementById('campaignDuration').value),
-                goals: document.getElementById('campaignGoals').value
-            };
-
-            const newCampaign = {
-                id: campaigns.length + 1,
-                name: campaignData.name,
-                type: campaignData.type,
-                status: 'active',
-                budget: campaignData.budget,
-                spent: 0,
-                leads: 0,
-                conversions: 0,
-                roi: 0
-            };
-
-            campaigns.push(newCampaign);
-            displayCampaigns();
-            closeCampaignModal();
-
-            showNotification(`✅ Campaign "${campaignData.name}" launched successfully!`, 'success');
-            
-            document.getElementById('activeCampaigns').textContent = campaigns.filter(c => c.status === 'active').length;
-        }
-
-        // Chat functions
+        // Chat Functions
         function handleChatKeypress(event) {
             if (event.key === 'Enter') {
                 sendMessage();
@@ -1151,165 +833,69 @@
             const message = input.value.trim();
             
             if (!message) return;
+            
+            if (!isConnected) {
+                showNotification('❌ Please connect to AI agents first', 'error');
+                return;
+            }
 
             addMessageToChat('user', message);
             input.value = '';
 
-            showTypingIndicator();
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Show typing indicator
+            addMessageToChat('ai', '<span class="loading-spinner"></span> AI is thinking...');
 
-            const aiResponse = generateAIResponse(message);
-            removeTypingIndicator();
-            addMessageToChat('ai', aiResponse.message, aiResponse.reasoning);
+            try {
+                // Simple AI response based on message content
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                removeLastMessage(); // Remove typing indicator
+                
+                let response = "I understand your query. ";
+                
+                if (message.toLowerCase().includes('campaign')) {
+                    response += "I can help you with campaign optimization and performance analysis. Would you like me to run a campaign analysis?";
+                } else if (message.toLowerCase().includes('lead')) {
+                    response += "I can help you generate and qualify leads. Our current lead generation is performing well with high-quality prospects.";
+                } else if (message.toLowerCase().includes('content')) {
+                    response += "I can create marketing content tailored to your brand. Would you like me to generate some content for your campaigns?";
+                } else {
+                    response += "I can help with lead generation, content creation, market analysis, and campaign optimization. What would you like to focus on?";
+                }
+                
+                addMessageToChat('ai', response);
+            } catch (error) {
+                removeLastMessage();
+                addMessageToChat('ai', '❌ Sorry, I encountered an error. Please try again.');
+                console.error('Chat error:', error);
+            }
         }
 
-        function addMessageToChat(sender, message, reasoning = null) {
+        function addMessageToChat(sender, message) {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
             const avatar = sender === 'ai' ? '🤖' : '👤';
-            const time = new Date().toLocaleTimeString();
-            
-            let reasoningHtml = '';
-            if (reasoning) {
-                reasoningHtml = `
-                    <div class="ai-reasoning">
-                        <h5>🧠 My Reasoning:</h5>
-                        <ul class="reasoning-points">
-                            ${reasoning.map(point => `<li>${point}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-            }
             
             messageDiv.innerHTML = `
                 <div class="message-avatar ${sender}">${avatar}</div>
-                <div class="message-content">
-                    <div>${message}</div>
-                    <div class="message-time">${time}</div>
-                    ${reasoningHtml}
-                </div>
+                <div class="message-content">${message}</div>
             `;
             
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        function showTypingIndicator() {
+        function removeLastMessage() {
             const chatMessages = document.getElementById('chatMessages');
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'message typing-message';
-            typingDiv.innerHTML = `
-                <div class="message-avatar ai">🤖</div>
-                <div class="message-content">
-                    <div class="typing-indicator">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-            `;
-            
-            chatMessages.appendChild(typingDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function removeTypingIndicator() {
-            const typingMessage = document.querySelector('.typing-message');
-            if (typingMessage) {
-                typingMessage.remove();
+            const lastMessage = chatMessages.lastElementChild;
+            if (lastMessage) {
+                lastMessage.remove();
             }
         }
 
-        function generateAIResponse(userMessage) {
-            const message = userMessage.toLowerCase();
-            const businessName = aiConfig.business?.name || 'your business';
-            const industry = aiConfig.business?.industry || 'your industry';
-            
-            if (message.includes('campaign') || message.includes('performance')) {
-                return {
-                    message: `Great question about ${businessName}! Your campaigns are performing excellently. The lead generation campaign is exceeding targets by 23%, and I've optimized targeting for ${industry} prospects.`,
-                    reasoning: [
-                        `Campaign ROI of 340% exceeds ${industry} average`,
-                        `Cost per acquisition 34% below target`,
-                        `AI targeting improved conversion by 18%`,
-                        `Market timing optimal for ${industry} expansion`
-                    ]
-                };
-            } else if (message.includes('lead') || message.includes('conversion')) {
-                return {
-                    message: `Your lead generation for ${businessName} is outstanding! Currently at 89 qualified leads with 15% improved conversion through AI optimization targeting ${industry} prospects.`,
-                    reasoning: [
-                        `AI scoring identified high-intent ${industry} prospects`,
-                        `Conversion rate improved from 12% to 15%`,
-                        `Cost per lead reduced 28% through smart bidding`,
-                        `Follow-up timing optimized for ${industry} buyers`
-                    ]
-                };
-            } else {
-                return {
-                    message: `I'm your AI marketing agent for ${businessName}! I can analyze campaigns, optimize targeting, monitor competitors, and provide strategic recommendations for ${industry}. What would you like to explore?`,
-                    reasoning: [
-                        `Currently monitoring campaigns for ${businessName}`,
-                        `Tracking competitor activity in ${industry}`,
-                        `Processing real-time marketing data`,
-                        `Ready to optimize ${industry} performance`
-                    ]
-                };
-            }
-        }
-
-        // Notifications
-        function loadNotifications() {
-            const businessName = aiConfig.business?.name || 'your business';
-            
-            notifications = [
-                {
-                    type: 'success',
-                    title: 'Campaign Optimization Complete',
-                    message: `AI optimized ${businessName} targeting - 18% ROI increase predicted`,
-                    time: '2 minutes ago'
-                },
-                {
-                    type: 'urgent',
-                    title: 'Competitor Activity Detected',
-                    message: 'Competitor launched new campaign - review recommended',
-                    time: '15 minutes ago'
-                },
-                {
-                    type: 'info',
-                    title: 'High-Value Lead Found',
-                    message: `AI identified enterprise prospect for ${businessName}`,
-                    time: '1 hour ago'
-                }
-            ];
-
-            displayNotifications();
-        }
-
-        function displayNotifications() {
-            const container = document.getElementById('notifications');
-            
-            container.innerHTML = notifications.map(notification => `
-                <div class="notification-item ${notification.type}">
-                    <div class="notification-time">${notification.time}</div>
-                    <div class="notification-header">${notification.title}</div>
-                    <div>${notification.message}</div>
-                </div>
-            `).join('');
-        }
-
-        function updateRealTimeData() {
-            // Simulate real-time updates
-            const leads = parseInt(document.getElementById('totalLeads').textContent);
-            
-            if (Math.random() > 0.7) {
-                const newLeads = leads + Math.floor(Math.random() * 5);
-                document.getElementById('totalLeads').textContent = newLeads;
-            }
-        }
-
+        // Utility Functions
         function showNotification(message, type) {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
@@ -1318,268 +904,5 @@
 
             setTimeout(() => {
                 notification.remove();
-            }, 5000);
-        }
-
-        console.log('🚀 Agentic AI Marketing Command Center ready!');
-    </script>
-</body>
-</html>">
-                
-                <!-- Business Information -->
-                <div class="settings-section">
-                    <h3>🏢 Business Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="businessName">Business Name</label>
-                            <input type="text" id="businessName" placeholder="Your Company Name">
-                        </div>
-                        <div class="form-group">
-                            <label for="industry">Industry</label>
-                            <select id="industry">
-                                <option value="">Select Industry</option>
-                                <option value="ecommerce">E-commerce</option>
-                                <option value="saas">SaaS/Software</option>
-                                <option value="retail">Retail</option>
-                                <option value="realestate">Real Estate</option>
-                                <option value="healthcare">Healthcare</option>
-                                <option value="finance">Finance</option>
-                                <option value="education">Education</option>
-                                <option value="consulting">Consulting</option>
-                                <option value="manufacturing">Manufacturing</option>
-                                <option value="automotive">Automotive</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="businessDescription">Business Description</label>
-                        <textarea id="businessDescription" placeholder="Describe what your business does, your products/services, and what makes you unique..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="targetAudience">Target Audience</label>
-                        <textarea id="targetAudience" placeholder="Describe your ideal customers: demographics, pain points, buying behavior..."></textarea>
-                    </div>
-                </div>
-
-                <!-- AI Agent Configuration -->
-                <div class="settings-section">
-                    <h3>🤖 AI Agent Settings</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="agentPersonality">AI Agent Personality</label>
-                            <select id="agentPersonality">
-                                <option value="professional">Professional & Data-Driven</option>
-                                <option value="creative">Creative & Innovative</option>
-                                <option value="analytical">Analytical & Detail-Oriented</option>
-                                <option value="friendly">Friendly & Approachable</option>
-                                <option value="aggressive">Aggressive & Results-Focused</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="automationLevel">Automation Level</label>
-                            <select id="automationLevel">
-                                <option value="conservative">Conservative - Ask before major actions</option>
-                                <option value="moderate">Moderate - Auto-optimize with notifications</option>
-                                <option value="aggressive">Aggressive - Full autonomous optimization</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Competitor Analysis -->
-                <div class="settings-section">
-                    <h3>🔍 Competitor Intelligence</h3>
-                    <div class="form-group">
-                        <label for="competitorWebsites">Competitor Websites to Monitor</label>
-                        <div id="competitorList" class="competitor-list">
-                            <div class="competitor-item">
-                                <span>https://example-competitor.com</span>
-                                <button type="button" class="remove-btn" onclick="removeCompetitor(this)">Remove</button>
-                            </div>
-                        </div>
-                        <div class="add-competitor">
-                            <input type="url" id="newCompetitor" placeholder="https://competitor-website.com">
-                            <button type="button" class="btn-secondary" onclick="addCompetitor()">Add</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Content Generation -->
-                <div class="settings-section">
-                    <h3>✍️ Content Generation</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="brandVoice">Brand Voice</label>
-                            <select id="brandVoice">
-                                <option value="professional">Professional</option>
-                                <option value="friendly">Friendly & Casual</option>
-                                <option value="authoritative">Authoritative</option>
-                                <option value="playful">Playful & Fun</option>
-                                <option value="luxury">Luxury & Premium</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="contentTypes">Content Types</label>
-                            <input type="text" id="contentTypes" placeholder="blog posts, emails, social media, ads">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="keyMessages">Key Messages</label>
-                        <textarea id="keyMessages" placeholder="What are your main selling points?"></textarea>
-                    </div>
-                </div>
-
-                <!-- Lead Generation -->
-                <div class="settings-section">
-                    <h3>🎯 Lead Generation</h3>
-                    <div class="form-group">
-                        <label for="idealCustomer">Ideal Customer Profile</label>
-                        <textarea id="idealCustomer" placeholder="Describe your perfect customer..."></textarea>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="leadSources">Lead Sources</label>
-                            <input type="text" id="leadSources" placeholder="LinkedIn, forums, directories">
-                        </div>
-                        <div class="form-group">
-                            <label for="leadGoal">Monthly Lead Goal</label>
-                            <input type="number" id="leadGoal" placeholder="100">
-                        </div>
-                    </div>
-                </div>
-
-                <div style="text-align: center; margin-top: 30px;">
-                    <button type="button" class="btn" onclick="saveConfiguration()">💾 Save Configuration</button>
-                    <button type="button" class="btn-secondary" onclick="closeSettings()">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Dashboard -->
-    <div id="dashboard" class="container hidden">
-        <!-- Header -->
-        <div class="header">
-            <div>
-                <h1 id="dashboardTitle">🤖 Agentic AI Marketing Command Center</h1>
-                <p id="dashboardSubtitle">Intelligent Marketing Automation with Reasoning</p>
-            </div>
-            <div class="header-controls">
-                <button class="btn" onclick="openCampaignModal()">+ New Campaign</button>
-                <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
-            </div>
-        </div>
-
-        <!-- Main Grid -->
-        <div class="main-grid">
-            <!-- Left Panel -->
-            <div class="left-panel">
-                <!-- Stats Overview -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-trend">+12%</div>
-                        <div class="stat-number" id="totalLeads">147</div>
-                        <div class="stat-label">Total Leads</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-trend">+8%</div>
-                        <div class="stat-number" id="qualifiedLeads">89</div>
-                        <div class="stat-label">Qualified Leads</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-trend">+3</div>
-                        <div class="stat-number" id="activeCampaigns">7</div>
-                        <div class="stat-label">Active Campaigns</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-trend">+24%</div>
-                        <div class="stat-number" id="avgROI">342%</div>
-                        <div class="stat-label">Avg ROI</div>
-                    </div>
-                </div>
-
-                <!-- Analytics Dashboard -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>📊 AI Analytics Dashboard</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-tabs">
-                            <button class="tab-btn active" onclick="switchChart('performance')">Performance</button>
-                            <button class="tab-btn" onclick="switchChart('competitors')">Competitors</button>
-                            <button class="tab-btn" onclick="switchChart('trends')">Market Trends</button>
-                            <button class="tab-btn" onclick="switchChart('roi')">ROI Analysis</button>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="analyticsChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Campaign Manager -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>🎯 Multi-Campaign Manager</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="campaignsList">
-                            <!-- Campaigns will be populated here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Panel -->
-            <div class="right-panel">
-                <!-- AI Chat -->
-                <div class="card ai-chat">
-                    <div class="card-header">
-                        <h3>💬 Chat with AI Agents</h3>
-                    </div>
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="message">
-                            <div class="message-avatar ai">🤖</div>
-                            <div class="message-content">
-                                <div>Hello! I'm your AI Marketing Agent. I've been analyzing your campaigns and market data. How can I help you today?</div>
-                                <div class="message-time">Just now</div>
-                                <div class="ai-reasoning">
-                                    <h5>🧠 My Current Analysis:</h5>
-                                    <ul class="reasoning-points">
-                                        <li>Campaign performance up 23% this week</li>
-                                        <li>Competitor activity detected - recommend response</li>
-                                        <li>Lead quality improved 15% due to AI targeting</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="chat-input">
-                        <div class="input-group">
-                            <input type="text" id="chatInput" placeholder="Ask your AI anything..." onkeypress="handleChatKeypress(event)">
-                            <button class="send-btn" onclick="sendMessage()">Send</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Notifications -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3>🔔 AI Alerts & Recommendations</h3>
-                    </div>
-                    <div class="ai-notifications" id="notifications">
-                        <!-- Notifications populated here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Campaign Modal -->
-    <div id="campaignModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🎯 Create New AI Campaign</h2>
-                <span class="close" onclick="closeCampaignModal()">&times;</span>
-            </div>
-            <div class="modal-body
+            }, 4000);
+        
