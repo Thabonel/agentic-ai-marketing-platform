@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from campaign_agent import CampaignAgent, CampaignObjective, TargetAudience, Channel, CampaignStatus, Campaign
+from lead_generation_agent import (
+    LeadGenerationAgent, LeadCriteria, DataSource, LeadStatus, LeadQuality, Lead, SearchTask
+)
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
 import json
+import io
 from datetime import datetime
 from supabase import create_client, Client
 import asyncio
@@ -151,6 +156,17 @@ campaign_agent = PersistentCampaignAgent(
     supabase_client=supabase
 )
 
+# Initialize Lead Generation Agent
+lead_agent = LeadGenerationAgent(
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    integrations={
+        'linkedin_api_key': os.getenv("LINKEDIN_API_KEY"),
+        'google_search_api_key': os.getenv("GOOGLE_SEARCH_API_KEY"),
+        'apollo_api_key': os.getenv("APOLLO_API_KEY"),
+        'zoominfo_api_key': os.getenv("ZOOMINFO_API_KEY"),
+    }
+)
+
 # Authentication dependency
 async def get_current_user(authorization: str = Header(None)):
     """Validate user token from Supabase"""
@@ -171,7 +187,7 @@ async def get_current_user(authorization: str = Header(None)):
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
-# Pydantic Models
+# Campaign Pydantic Models
 class CreateCampaignRequest(BaseModel):
     name: str
     objective_type: str  # lead_generation, brand_awareness, conversion, retention
@@ -195,7 +211,55 @@ class CampaignResponse(BaseModel):
     channels: List[str]
     performance_metrics: Dict[str, Any]
 
-# Campaign Endpoints
+# Lead Generation Pydantic Models
+class CreateSearchTaskRequest(BaseModel):
+    name: str
+    criteria: Dict[str, Any]
+    sources: List[str]  # "website_scraping", "linkedin", "google_search", "database"
+    max_leads: int = 100
+
+class UpdateLeadStatusRequest(BaseModel):
+    status: str
+    notes: Optional[str] = None
+
+class ExportLeadsRequest(BaseModel):
+    format: str = "csv"  # "csv" or "json"
+    quality_filter: Optional[str] = None
+    status_filter: Optional[str] = None
+    source_filter: Optional[str] = None
+    include_fields: Optional[List[str]] = None
+    limit: int = 1000
+
+class LeadResponse(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    email: Optional[str]
+    phone: Optional[str]
+    job_title: Optional[str]
+    company: str
+    company_website: Optional[str]
+    industry: Optional[str]
+    location: Optional[str]
+    quality_score: float
+    quality_level: str
+    status: str
+    source: str
+    created_at: str
+    last_contacted: Optional[str]
+    contact_attempts: int
+
+class SearchTaskResponse(BaseModel):
+    id: str
+    name: str
+    status: str
+    progress: float
+    leads_found: int
+    created_at: str
+    completed_at: Optional[str]
+    results_summary: Dict[str, Any]
+
+# CAMPAIGN ENDPOINTS
 
 @app.post("/api/campaigns", response_model=CampaignResponse)
 async def create_campaign(request: CreateCampaignRequest, user=Depends(get_current_user)):
@@ -400,8 +464,6 @@ async def optimize_campaign(campaign_id: str, user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating optimizations: {str(e)}")
 
-# Dashboard Analytics Endpoints
-
 @app.get("/api/dashboard/campaign-overview")
 async def get_campaign_overview(user=Depends(get_current_user)):
     """Get high-level campaign overview for dashboard"""
@@ -428,7 +490,375 @@ async def get_campaign_overview(user=Depends(get_current_user)):
         ]
     }
 
-# Legacy Agent Endpoints (keep your existing ones)
+# LEAD GENERATION ENDPOINTS
+
+@app.post("/api/leads/search", response_model=SearchTaskResponse)
+async def create_lead_search_task(request: CreateSearchTaskRequest, user=Depends(get_current_user)):
+    """Create a new lead generation search task"""
+    
+    try:
+        # Convert request to LeadCriteria
+        criteria = LeadCriteria(
+            industry=request.criteria.get('industry'),
+            company_size=request.criteria.get('company_size'),
+            location=request.criteria.get('location'),
+            job_titles=request.criteria.get('job_titles', []),
+            keywords=request.criteria.get('keywords', []),
+            technologies=request.criteria.get('technologies', []),
+            revenue_range=request.criteria.get('revenue_range'),
+            exclude_competitors=request.criteria.get('exclude_competitors', True)
+        )
+        
+        # Convert source strings to enums
+        sources = [DataSource(source) for source in request.sources]
+        
+        # Create search task
+        task = await lead_agent.create_search_task(
+            name=request.name,
+            criteria=criteria,
+            sources=sources,
+            max_leads=request.max_leads
+        )
+        
+        return SearchTaskResponse(
+            id=task.id,
+            name=task.name,
+            status=task.status,
+            progress=task.progress,
+            leads_found=task.leads_found,
+            created_at=task.created_at.isoformat(),
+            completed_at=task.completed_at.isoformat() if task.completed_at else None,
+            results_summary=task.results_summary
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to create search task: {str(e)}")
+
+@app.get("/api/leads/search/{task_id}", response_model=SearchTaskResponse)
+async def get_search_task(task_id: str, user=Depends(get_current_user)):
+    """Get search task status and results"""
+    
+    task = lead_agent.search_tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Search task not found")
+    
+    return SearchTaskResponse(
+        id=task.id,
+        name=task.name,
+        status=task.status,
+        progress=task.progress,
+        leads_found=task.leads_found,
+        created_at=task.created_at.isoformat(),
+        completed_at=task.completed_at.isoformat() if task.completed_at else None,
+        results_summary=task.results_summary
+    )
+
+@app.get("/api/leads/search", response_model=List[SearchTaskResponse])
+async def get_search_tasks(user=Depends(get_current_user)):
+    """Get all search tasks"""
+    
+    tasks = []
+    for task in lead_agent.search_tasks.values():
+        tasks.append(SearchTaskResponse(
+            id=task.id,
+            name=task.name,
+            status=task.status,
+            progress=task.progress,
+            leads_found=task.leads_found,
+            created_at=task.created_at.isoformat(),
+            completed_at=task.completed_at.isoformat() if task.completed_at else None,
+            results_summary=task.results_summary
+        ))
+    
+    # Sort by creation date (newest first)
+    tasks.sort(key=lambda x: x.created_at, reverse=True)
+    return tasks
+
+@app.get("/api/leads", response_model=List[LeadResponse])
+async def get_leads(
+    quality: Optional[str] = None,
+    status: Optional[str] = None,
+    source: Optional[str] = None,
+    limit: int = 100,
+    user=Depends(get_current_user)
+):
+    """Get leads with optional filtering"""
+    
+    try:
+        # Convert string filters to enums
+        quality_filter = LeadQuality(quality) if quality else None
+        status_filter = LeadStatus(status) if status else None
+        source_filter = DataSource(source) if source else None
+        
+        leads = await lead_agent.get_leads(
+            quality_filter=quality_filter,
+            status_filter=status_filter,
+            source_filter=source_filter,
+            limit=limit
+        )
+        
+        return [
+            LeadResponse(
+                id=lead.id,
+                first_name=lead.first_name,
+                last_name=lead.last_name,
+                email=lead.email,
+                phone=lead.phone,
+                job_title=lead.job_title,
+                company=lead.company,
+                company_website=lead.company_website,
+                industry=lead.industry,
+                location=lead.location,
+                quality_score=lead.quality_score,
+                quality_level=lead.quality_level.value,
+                status=lead.status.value,
+                source=lead.source.value,
+                created_at=lead.created_at.isoformat(),
+                last_contacted=lead.last_contacted.isoformat() if lead.last_contacted else None,
+                contact_attempts=lead.contact_attempts
+            )
+            for lead in leads
+        ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving leads: {str(e)}")
+
+@app.get("/api/leads/{lead_id}", response_model=LeadResponse)
+async def get_lead(lead_id: str, user=Depends(get_current_user)):
+    """Get specific lead details"""
+    
+    lead = lead_agent.leads.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    return LeadResponse(
+        id=lead.id,
+        first_name=lead.first_name,
+        last_name=lead.last_name,
+        email=lead.email,
+        phone=lead.phone,
+        job_title=lead.job_title,
+        company=lead.company,
+        company_website=lead.company_website,
+        industry=lead.industry,
+        location=lead.location,
+        quality_score=lead.quality_score,
+        quality_level=lead.quality_level.value,
+        status=lead.status.value,
+        source=lead.source.value,
+        created_at=lead.created_at.isoformat(),
+        last_contacted=lead.last_contacted.isoformat() if lead.last_contacted else None,
+        contact_attempts=lead.contact_attempts
+    )
+
+@app.put("/api/leads/{lead_id}/status")
+async def update_lead_status(lead_id: str, request: UpdateLeadStatusRequest, user=Depends(get_current_user)):
+    """Update lead status"""
+    
+    try:
+        status = LeadStatus(request.status)
+        await lead_agent.update_lead_status(lead_id, status, request.notes)
+        
+        return {"message": f"Lead {lead_id} status updated to {request.status}"}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error updating lead status: {str(e)}")
+
+@app.post("/api/leads/export")
+async def export_leads(request: ExportLeadsRequest, user=Depends(get_current_user)):
+    """Export leads to CSV or JSON"""
+    
+    try:
+        # Convert string filters to enums
+        quality_filter = LeadQuality(request.quality_filter) if request.quality_filter else None
+        status_filter = LeadStatus(request.status_filter) if request.status_filter else None
+        source_filter = DataSource(request.source_filter) if request.source_filter else None
+        
+        # Get filtered leads
+        leads = await lead_agent.get_leads(
+            quality_filter=quality_filter,
+            status_filter=status_filter,
+            source_filter=source_filter,
+            limit=request.limit
+        )
+        
+        if not leads:
+            raise HTTPException(status_code=404, detail="No leads found matching criteria")
+        
+        # Export leads
+        exported_data = await lead_agent.export_leads(
+            leads=leads,
+            format=request.format,
+            include_fields=request.include_fields
+        )
+        
+        # Return as downloadable file
+        if request.format.lower() == "csv":
+            media_type = "text/csv"
+            filename = f"leads_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        else:
+            media_type = "application/json"
+            filename = f"leads_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        return StreamingResponse(
+            io.StringIO(exported_data),
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Export failed: {str(e)}")
+
+@app.get("/api/leads/analytics/overview")
+async def get_leads_analytics(user=Depends(get_current_user)):
+    """Get lead generation analytics overview"""
+    
+    all_leads = list(lead_agent.leads.values())
+    
+    if not all_leads:
+        return {
+            "total_leads": 0,
+            "quality_distribution": {},
+            "status_distribution": {},
+            "source_distribution": {},
+            "average_score": 0,
+            "recent_activity": []
+        }
+    
+    # Calculate analytics
+    total_leads = len(all_leads)
+    
+    quality_distribution = {}
+    for quality in LeadQuality:
+        count = len([l for l in all_leads if l.quality_level == quality])
+        quality_distribution[quality.value] = count
+    
+    status_distribution = {}
+    for status in LeadStatus:
+        count = len([l for l in all_leads if l.status == status])
+        status_distribution[status.value] = count
+    
+    source_distribution = {}
+    for source in DataSource:
+        count = len([l for l in all_leads if l.source == source])
+        source_distribution[source.value] = count
+    
+    average_score = sum(l.quality_score for l in all_leads) / total_leads
+    
+    # Recent activity (last 10 leads)
+    recent_leads = sorted(all_leads, key=lambda x: x.created_at, reverse=True)[:10]
+    recent_activity = [
+        {
+            "lead_id": l.id,
+            "name": f"{l.first_name} {l.last_name}",
+            "company": l.company,
+            "quality_score": l.quality_score,
+            "created_at": l.created_at.isoformat()
+        }
+        for l in recent_leads
+    ]
+    
+    return {
+        "total_leads": total_leads,
+        "quality_distribution": quality_distribution,
+        "status_distribution": status_distribution,
+        "source_distribution": source_distribution,
+        "average_score": round(average_score, 2),
+        "recent_activity": recent_activity
+    }
+
+@app.post("/api/leads/{lead_id}/mark-qualified")
+async def mark_lead_qualified(lead_id: str, user=Depends(get_current_user)):
+    """Quick action: Mark lead as qualified"""
+    
+    try:
+        await lead_agent.update_lead_status(lead_id, LeadStatus.QUALIFIED, "Marked as qualified")
+        return {"message": f"Lead {lead_id} marked as qualified"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/api/leads/{lead_id}/mark-contacted")
+async def mark_lead_contacted(lead_id: str, user=Depends(get_current_user)):
+    """Quick action: Mark lead as contacted"""
+    
+    try:
+        await lead_agent.update_lead_status(lead_id, LeadStatus.CONTACTED, "Outreach initiated")
+        return {"message": f"Lead {lead_id} marked as contacted"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/api/leads/bulk-update")
+async def bulk_update_leads(
+    lead_ids: List[str],
+    status: str,
+    notes: Optional[str] = None,
+    user=Depends(get_current_user)
+):
+    """Bulk update multiple leads"""
+    
+    try:
+        status_enum = LeadStatus(status)
+        
+        updated_count = 0
+        for lead_id in lead_ids:
+            try:
+                await lead_agent.update_lead_status(lead_id, status_enum, notes)
+                updated_count += 1
+            except ValueError:
+                continue  # Skip invalid lead IDs
+        
+        return {
+            "message": f"Updated {updated_count} out of {len(lead_ids)} leads",
+            "updated_count": updated_count
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Bulk update failed: {str(e)}")
+
+@app.post("/api/leads/{lead_id}/enrich")
+async def enrich_lead(lead_id: str, user=Depends(get_current_user)):
+    """Enrich lead data with additional information"""
+    
+    lead = lead_agent.leads.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    try:
+        # This would integrate with data enrichment services
+        # For now, return mock enriched data
+        
+        enriched_data = {
+            "social_profiles": {
+                "linkedin": f"https://linkedin.com/in/{lead.first_name.lower()}-{lead.last_name.lower()}",
+                "twitter": f"@{lead.first_name.lower()}{lead.last_name.lower()}"
+            },
+            "company_info": {
+                "employee_count": "51-200",
+                "annual_revenue": "$10M-$50M",
+                "technologies": ["Salesforce", "HubSpot", "Slack"]
+            },
+            "contact_info": {
+                "direct_phone": "+1-555-0123",
+                "mobile_phone": "+1-555-0124"
+            },
+            "enrichment_score": 85
+        }
+        
+        # Update lead with enriched data
+        lead.custom_fields.update(enriched_data)
+        lead.updated_at = datetime.now()
+        
+        return {
+            "message": f"Lead {lead_id} enriched successfully",
+            "enriched_data": enriched_data
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Enrichment failed: {str(e)}")
+
+# LEGACY AGENT ENDPOINTS (keep your existing ones)
 
 class Agent(BaseModel):
     id: str
