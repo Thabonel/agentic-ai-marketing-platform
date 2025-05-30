@@ -15,7 +15,6 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  DollarSign
 } from 'lucide-react';
 
 // Configuration
