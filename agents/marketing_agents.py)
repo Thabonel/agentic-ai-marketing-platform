@@ -1,0 +1,535 @@
+from typing import Dict, Any, List
+import asyncio
+import json
+from datetime import datetime, timedelta
+import random
+from .base_agent import BaseAgent, agent_registry
+
+class LeadGeneratorAgent(BaseAgent):
+    """Agent for generating and scoring leads"""
+    
+    def get_supported_tasks(self) -> List[str]:
+        return [
+            "generate_leads",
+            "score_leads", 
+            "enrich_leads",
+            "segment_leads"
+        ]
+    
+    async def execute_task(self, task_type: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute lead generation tasks"""
+        
+        if task_type == "generate_leads":
+            return await self._generate_leads(input_data)
+        elif task_type == "score_leads":
+            return await self._score_leads(input_data)
+        elif task_type == "enrich_leads":
+            return await self._enrich_leads(input_data)
+        elif task_type == "segment_leads":
+            return await self._segment_leads(input_data)
+        else:
+            raise ValueError(f"Unsupported task type: {task_type}")
+    
+    async def _generate_leads(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate new leads based on criteria"""
+        self.validate_input_data(["target_criteria", "lead_count"], input_data)
+        
+        target_criteria = input_data["target_criteria"]
+        lead_count = input_data["lead_count"]
+        
+        self.logger.info(f"Generating {lead_count} leads with criteria: {target_criteria}")
+        
+        # Simulate lead generation (replace with actual lead generation logic)
+        generated_leads = []
+        
+        for i in range(lead_count):
+            # Simulate lead data generation
+            lead_data = {
+                "email": f"prospect{i}@company{random.randint(1,100)}.com",
+                "first_name": f"Prospect{i}",
+                "last_name": f"Lead{i}",
+                "company": f"Company {random.randint(1,100)}",
+                "job_title": random.choice(["CEO", "CTO", "Marketing Manager", "VP Sales"]),
+                "industry": random.choice(["Technology", "Healthcare", "Finance", "Retail"]),
+                "company_size": random.choice(["small", "medium", "large", "enterprise"]),
+                "country": "USA",
+                "source": "ai_generated",
+                "source_details": {"criteria": target_criteria, "agent_id": self.agent_id},
+                "tags": ["ai_generated", "prospect"]
+            }
+            
+            # Save lead to database
+            saved_lead = await self.save_result_to_database("leads", lead_data)
+            if saved_lead:
+                generated_leads.append(saved_lead["id"])
+        
+        return {
+            "generated_leads": generated_leads,
+            "count": len(generated_leads),
+            "criteria": target_criteria,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _score_leads(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Score leads based on engagement and profile data"""
+        lead_ids = input_data.get("lead_ids", [])
+        
+        if not lead_ids:
+            # Score all recent leads if none specified
+            recent_leads = await self.get_lead_data(filters={"status": "new"})
+            lead_ids = [lead["id"] for lead in recent_leads[:50]]
+        
+        scored_leads = []
+        
+        for lead_id in lead_ids:
+            lead_data = await self.get_lead_data(lead_id=lead_id)
+            if not lead_data:
+                continue
+                
+            lead = lead_data[0]
+            
+            # Calculate lead score (simplified scoring logic)
+            score = 0
+            
+            # Company size scoring
+            company_size = lead.get("company_size", "")
+            if company_size == "enterprise":
+                score += 40
+            elif company_size == "large":
+                score += 30
+            elif company_size == "medium":
+                score += 20
+            else:
+                score += 10
+            
+            # Job title scoring
+            job_title = lead.get("job_title", "").lower()
+            if any(title in job_title for title in ["ceo", "cto", "vp", "director"]):
+                score += 30
+            elif "manager" in job_title:
+                score += 20
+            else:
+                score += 10
+            
+            # Industry scoring
+            industry = lead.get("industry", "").lower()
+            if industry in ["technology", "software", "saas"]:
+                score += 20
+            
+            # Add some randomness for engagement simulation
+            score += random.randint(0, 20)
+            
+            # Update lead score in database
+            try:
+                self.supabase.table("leads")\
+                    .update({"lead_score": score})\
+                    .eq("id", lead_id)\
+                    .execute()
+                
+                scored_leads.append({"lead_id": lead_id, "score": score})
+                
+            except Exception as e:
+                self.logger.error(f"Failed to update score for lead {lead_id}: {str(e)}")
+        
+        return {
+            "scored_leads": scored_leads,
+            "count": len(scored_leads),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _enrich_leads(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Enrich lead data with additional information"""
+        lead_ids = input_data.get("lead_ids", [])
+        
+        enriched_count = 0
+        
+        for lead_id in lead_ids:
+            # Simulate lead enrichment (replace with actual enrichment API)
+            enrichment_data = {
+                "linkedin_profile": f"https://linkedin.com/in/prospect-{lead_id}",
+                "company_website": f"https://company-{random.randint(1,100)}.com",
+                "annual_revenue": random.randint(1000000, 50000000),
+                "employee_count": random.randint(10, 10000),
+                "technologies": random.sample(["Python", "React", "AWS", "Docker", "Kubernetes"], 3),
+                "enriched_at": datetime.utcnow().isoformat()
+            }
+            
+            try:
+                self.supabase.table("leads")\
+                    .update({"enriched_data": enrichment_data})\
+                    .eq("id", lead_id)\
+                    .execute()
+                
+                enriched_count += 1
+                
+            except Exception as e:
+                self.logger.error(f"Failed to enrich lead {lead_id}: {str(e)}")
+        
+        return {
+            "enriched_count": enriched_count,
+            "total_processed": len(lead_ids),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _segment_leads(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Segment leads into different categories"""
+        criteria = input_data.get("segmentation_criteria", {})
+        
+        # Get all leads
+        all_leads = await self.get_lead_data()
+        
+        segments = {
+            "high_value": [],
+            "medium_value": [],
+            "low_value": [],
+            "enterprise": [],
+            "smb": []
+        }
+        
+        for lead in all_leads:
+            lead_id = lead["id"]
+            score = lead.get("lead_score", 0)
+            company_size = lead.get("company_size", "")
+            
+            # Score-based segmentation
+            if score >= 70:
+                segments["high_value"].append(lead_id)
+            elif score >= 40:
+                segments["medium_value"].append(lead_id)
+            else:
+                segments["low_value"].append(lead_id)
+            
+            # Size-based segmentation
+            if company_size in ["large", "enterprise"]:
+                segments["enterprise"].append(lead_id)
+            else:
+                segments["smb"].append(lead_id)
+        
+        return {
+            "segments": segments,
+            "total_leads": len(all_leads),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+class ContentCreatorAgent(BaseAgent):
+    """Agent for creating marketing content"""
+    
+    def get_supported_tasks(self) -> List[str]:
+        return [
+            "create_email_content",
+            "create_social_content", 
+            "create_blog_content",
+            "optimize_content_seo",
+            "personalize_content"
+        ]
+    
+    async def execute_task(self, task_type: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute content creation tasks"""
+        
+        if task_type == "create_email_content":
+            return await self._create_email_content(input_data)
+        elif task_type == "create_social_content":
+            return await self._create_social_content(input_data)
+        elif task_type == "create_blog_content":
+            return await self._create_blog_content(input_data)
+        elif task_type == "optimize_content_seo":
+            return await self._optimize_content_seo(input_data)
+        elif task_type == "personalize_content":
+            return await self._personalize_content(input_data)
+        else:
+            raise ValueError(f"Unsupported task type: {task_type}")
+    
+    async def _create_email_content(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create email marketing content"""
+        self.validate_input_data(["campaign_type", "target_audience"], input_data)
+        
+        campaign_type = input_data["campaign_type"]
+        target_audience = input_data["target_audience"]
+        subject_variations = input_data.get("subject_variations", 3)
+        
+        # Simulate content creation (replace with actual AI content generation)
+        email_contents = []
+        
+        for i in range(subject_variations):
+            content = {
+                "subject_line": f"🚀 Transform Your {campaign_type} Strategy - Limited Time Offer #{i+1}",
+                "preview_text": f"Discover how top companies are revolutionizing their {campaign_type}",
+                "html_content": f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; max-width: 600px;">
+                    <h1>Transform Your {campaign_type} Strategy</h1>
+                    <p>Dear {{{{ first_name }}}},</p>
+                    
+                    <p>Are you ready to take your {campaign_type} to the next level? 
+                    Companies like yours in the {target_audience.get('industry', 'your industry')} 
+                    are seeing incredible results with our proven approach.</p>
+                    
+                    <div style="background: #f0f8ff; padding: 20px; margin: 20px 0; border-radius: 8px;">
+                        <h3>🎯 What You'll Get:</h3>
+                        <ul>
+                            <li>Personalized strategy consultation</li>
+                            <li>Industry-specific best practices</li>
+                            <li>ROI optimization techniques</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="{{{{ cta_link }}}}" style="background: #007cba; color: white; padding: 12px 24px; 
+                       text-decoration: none; border-radius: 4px; display: inline-block; margin: 20px 0;">
+                        Get Started Today
+                    </a>
+                    
+                    <p>Best regards,<br>The Wheels Wins Team</p>
+                </body>
+                </html>
+                """,
+                "text_content": f"""
+                Transform Your {campaign_type} Strategy
+                
+                Dear {{{{ first_name }}}},
+                
+                Are you ready to take your {campaign_type} to the next level?
+                
+                What You'll Get:
+                - Personalized strategy consultation
+                - Industry-specific best practices  
+                - ROI optimization techniques
+                
+                Get Started: {{{{ cta_link }}}}
+                
+                Best regards,
+                The Wheels Wins Team
+                """,
+                "variation": i + 1
+            }
+            
+            # Save content to database
+            content_data = {
+                "title": content["subject_line"],
+                "content_type": "email",
+                "content": json.dumps(content),
+                "keywords": [campaign_type, target_audience.get("industry", "business")],
+                "generated_by_agent": self.agent_id,
+                "status": "draft"
+            }
+            
+            saved_content = await self.save_result_to_database("content_pieces", content_data)
+            if saved_content:
+                content["content_id"] = saved_content["id"]
+                email_contents.append(content)
+        
+        return {
+            "email_contents": email_contents,
+            "count": len(email_contents),
+            "campaign_type": campaign_type,
+            "target_audience": target_audience,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _create_social_content(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create social media content"""
+        self.validate_input_data(["platform", "content_theme"], input_data)
+        
+        platform = input_data["platform"]
+        theme = input_data["content_theme"]
+        post_count = input_data.get("post_count", 5)
+        
+        social_posts = []
+        
+        for i in range(post_count):
+            if platform.lower() == "linkedin":
+                content = f"""🚀 {theme} Insight #{i+1}
+
+In today's competitive landscape, successful businesses are leveraging {theme} to drive unprecedented growth.
+
+Key takeaways:
+• Strategy beats tactics every time
+• Data-driven decisions win
+• Customer-centricity is non-negotiable
+
+What's your experience with {theme}? Share your thoughts below! 👇
+
+#Business #Growth #Strategy #Marketing"""
+            
+            elif platform.lower() == "twitter":
+                content = f"🎯 {theme} tip #{i+1}: Focus on value creation over volume. Quality engagement beats vanity metrics every time. #Marketing #Growth"
+                
+            else:  # Generic social content
+                content = f"Transform your {theme} strategy with these proven techniques. See results in 30 days or less! 💪 #{theme.replace(' ', '')} #Business"
+            
+            hashtags = ["#Marketing", "#Business", "#Growth", f"#{theme.replace(' ', '')}"]
+            
+            post_data = {
+                "platform": platform,
+                "content": content,
+                "hashtags": hashtags,
+                "scheduled_time": None,
+                "status": "draft",
+                "engagement_metrics": {}
+            }
+            
+            saved_post = await self.save_result_to_database("social_posts", post_data)
+            if saved_post:
+                post_data["post_id"] = saved_post["id"]
+                social_posts.append(post_data)
+        
+        return {
+            "social_posts": social_posts,
+            "count": len(social_posts),
+            "platform": platform,
+            "theme": theme,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+class CampaignManagerAgent(BaseAgent):
+    """Agent for managing marketing campaigns"""
+    
+    def get_supported_tasks(self) -> List[str]:
+        return [
+            "create_campaign",
+            "optimize_campaign",
+            "analyze_performance",
+            "schedule_content",
+            "manage_budget"
+        ]
+    
+    async def execute_task(self, task_type: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute campaign management tasks"""
+        
+        if task_type == "create_campaign":
+            return await self._create_campaign(input_data)
+        elif task_type == "optimize_campaign":
+            return await self._optimize_campaign(input_data)
+        elif task_type == "analyze_performance":
+            return await self._analyze_performance(input_data)
+        elif task_type == "schedule_content":
+            return await self._schedule_content(input_data)
+        elif task_type == "manage_budget":
+            return await self._manage_budget(input_data)
+        else:
+            raise ValueError(f"Unsupported task type: {task_type}")
+    
+    async def _create_campaign(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new marketing campaign"""
+        self.validate_input_data(["name", "type", "channel"], input_data)
+        
+        campaign_data = {
+            "name": input_data["name"],
+            "description": input_data.get("description", ""),
+            "type": input_data["type"],
+            "channel": input_data["channel"],
+            "target_audience": input_data.get("target_audience", {}),
+            "content": input_data.get("content", {}),
+            "settings": input_data.get("settings", {}),
+            "budget_allocated": input_data.get("budget_allocated", 0),
+            "budget_spent": 0,
+            "status": "draft",
+            "start_date": input_data.get("start_date"),
+            "end_date": input_data.get("end_date"),
+            "created_by": None  # Set based on authentication
+        }
+        
+        # Save campaign
+        saved_campaign = await self.save_result_to_database("campaigns", campaign_data)
+        
+        if saved_campaign:
+            # Also add to active campaigns if status is active
+            if campaign_data.get("status") == "active":
+                await self.save_result_to_database("active_campaigns", campaign_data)
+        
+        return {
+            "campaign_id": saved_campaign["id"] if saved_campaign else None,
+            "campaign_data": campaign_data,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _analyze_performance(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze campaign performance"""
+        campaign_id = input_data.get("campaign_id")
+        
+        if not campaign_id:
+            raise ValueError("campaign_id is required")
+        
+        # Get campaign metrics
+        metrics_result = self.supabase.table("campaign_metrics")\
+            .select("*")\
+            .eq("campaign_id", campaign_id)\
+            .execute()
+        
+        metrics = metrics_result.data
+        
+        # Calculate performance summary
+        performance_summary = {
+            "total_metrics": len(metrics),
+            "date_range": {},
+            "key_metrics": {},
+            "trends": {},
+            "recommendations": []
+        }
+        
+        if metrics:
+            dates = [m["metric_date"] for m in metrics]
+            performance_summary["date_range"] = {
+                "start": min(dates),
+                "end": max(dates)
+            }
+            
+            # Aggregate key metrics
+            metric_types = {}
+            for metric in metrics:
+                metric_type = metric["metric_type"]
+                if metric_type not in metric_types:
+                    metric_types[metric_type] = []
+                metric_types[metric_type].append(float(metric["metric_value"]))
+            
+            for metric_type, values in metric_types.items():
+                performance_summary["key_metrics"][metric_type] = {
+                    "total": sum(values),
+                    "average": sum(values) / len(values),
+                    "count": len(values)
+                }
+            
+            # Generate recommendations
+            recommendations = []
+            
+            # Check conversion rates
+            if "conversion_rate" in metric_types:
+                avg_conversion = sum(metric_types["conversion_rate"]) / len(metric_types["conversion_rate"])
+                if avg_conversion < 0.02:  # Less than 2%
+                    recommendations.append("Consider A/B testing your landing page to improve conversion rates")
+            
+            # Check engagement
+            if "engagement_rate" in metric_types:
+                avg_engagement = sum(metric_types["engagement_rate"]) / len(metric_types["engagement_rate"])
+                if avg_engagement < 0.05:  # Less than 5%
+                    recommendations.append("Content engagement is low - consider more personalized messaging")
+            
+            performance_summary["recommendations"] = recommendations
+        
+        # Save performance analysis
+        analysis_data = {
+            "metric_category": "campaign_analysis",
+            "metric_name": "performance_summary",
+            "metric_value": len(metrics),
+            "time_period": "campaign_lifetime",
+            "date_recorded": datetime.utcnow().date().isoformat(),
+            "dimensions": {
+                "campaign_id": campaign_id,
+                "analysis": performance_summary
+            }
+        }
+        
+        await self.save_result_to_database("performance_analytics", analysis_data)
+        
+        return {
+            "campaign_id": campaign_id,
+            "performance_summary": performance_summary,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+# Register agents with the registry
+agent_registry.register_agent("lead_generator", LeadGeneratorAgent)
+agent_registry.register_agent("content_creator", ContentCreatorAgent)
+agent_registry.register_agent("campaign_manager", CampaignManagerAgent)
