@@ -1,0 +1,26 @@
+{
+  "name": "wheels-wins-ai-marketing",
+  "version": "1.0.0",
+  "description": "AI Marketing Platform with Intelligent Agents",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Build complete'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "keywords": [
+    "ai",
+    "marketing",
+    "automation",
+    "agents",
+    "supabase"
+  ],
+  "author": "Wheels & Wins",
+  "license": "MIT"
+}
