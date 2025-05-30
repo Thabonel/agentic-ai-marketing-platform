@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Bot, 
-  BarChart3, 
-  Settings, 
+  BarChart3,  
   Users, 
   MessageSquare, 
   PlayCircle, 
