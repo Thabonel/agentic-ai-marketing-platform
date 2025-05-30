@@ -1,422 +1,473 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import asyncio
-import logging
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
-import os
-from supabase import create_client, Client
-import json
+from campaign_agent import CampaignAgent, CampaignObjective, TargetAudience, Channel, CampaignStatus, Campaign
 from pydantic import BaseModel
-from enum import Enum
+from typing import List, Dict, Any, Optional
+import os
+import json
+from datetime import datetime
+from supabase import create_client, Client
+import asyncio
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = FastAPI(title="AI Marketing Campaign Manager", version="1.0.0")
 
-# Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# FastAPI app
-app = FastAPI(
-    title="Wheels Wins AI Marketing Orchestrator",
-    description="Multi-agent AI marketing automation system",
-    version="1.0.0"
-)
-
-# CORS middleware for Netlify frontend
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update with your Netlify domain in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Auth
-security = HTTPBearer()
+# Supabase client
+supabase: Client = create_client(
+    os.getenv("SUPABASE_URL"),
+    os.getenv("SUPABASE_ANON_KEY")
+)
 
-# Pydantic models
-class AgentStatus(str, Enum):
-    IDLE = "idle"
-    RUNNING = "running"
-    ERROR = "error"
-    STOPPED = "stopped"
-
-class AgentType(str, Enum):
-    LEAD_GENERATOR = "lead_generator"
-    CONTENT_CREATOR = "content_creator"
-    CAMPAIGN_MANAGER = "campaign_manager"
-    MARKET_RESEARCHER = "market_researcher"
-    EMAIL_MARKETER = "email_marketer"
-    SOCIAL_MEDIA = "social_media"
-
-class TaskStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-class AgentConfig(BaseModel):
-    name: str
-    type: AgentType
-    description: Optional[str] = None
-    config: Dict[str, Any] = {}
-
-class TaskRequest(BaseModel):
-    agent_id: int
-    task_type: str
-    input_data: Dict[str, Any] = {}
-    priority: int = 5
-
-class AgentResponse(BaseModel):
-    id: int
-    name: str
-    type: str
-    status: str
-    last_run_at: Optional[datetime]
-    created_at: datetime
-
-class TaskResponse(BaseModel):
-    id: int
-    agent_id: int
-    task_type: str
-    status: str
-    input_data: Optional[Dict[str, Any]]
-    output_data: Optional[Dict[str, Any]]
-    error_message: Optional[str]
-    execution_time_ms: Optional[int]
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-
-# Database helper functions
-async def get_agent_by_id(agent_id: int) -> Dict:
-    """Get agent by ID"""
-    result = supabase.table("agents").select("*").eq("id", agent_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    return result.data[0]
-
-async def update_agent_status(agent_id: int, status: AgentStatus, last_run_at: datetime = None):
-    """Update agent status"""
-    update_data = {"status": status.value, "updated_at": datetime.utcnow().isoformat()}
-    if last_run_at:
-        update_data["last_run_at"] = last_run_at.isoformat()
+# Persistent Campaign Agent with Supabase integration
+class PersistentCampaignAgent(CampaignAgent):
+    def __init__(self, openai_api_key: str, integrations: Dict[str, str], supabase_client: Client):
+        super().__init__(openai_api_key, integrations)
+        self.supabase = supabase_client
+        asyncio.create_task(self.load_campaigns())
     
-    supabase.table("agents").update(update_data).eq("id", agent_id).execute()
-
-async def create_agent_log(agent_id: int, task_type: str, status: TaskStatus, 
-                          input_data: Dict = None, output_data: Dict = None, 
-                          error_message: str = None, execution_time_ms: int = None):
-    """Create agent log entry"""
-    log_data = {
-        "agent_id": agent_id,
-        "task_type": task_type,
-        "status": status.value,
-        "input_data": input_data or {},
-        "output_data": output_data or {},
-        "error_message": error_message,
-        "execution_time_ms": execution_time_ms,
-        "started_at": datetime.utcnow().isoformat()
-    }
-    
-    if status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-        log_data["completed_at"] = datetime.utcnow().isoformat()
-    
-    result = supabase.table("agent_logs").insert(log_data).execute()
-    return result.data[0] if result.data else None
-
-# Agent Management Endpoints
-@app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {
-        "message": "Wheels Wins AI Marketing Orchestrator",
-        "status": "running",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-@app.get("/agents", response_model=List[AgentResponse])
-async def get_agents():
-    """Get all agents"""
-    try:
-        result = supabase.table("agents").select("*").execute()
-        return [AgentResponse(**agent) for agent in result.data]
-    except Exception as e:
-        logger.error(f"Error fetching agents: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch agents")
-
-@app.post("/agents", response_model=AgentResponse)
-async def create_agent(agent_config: AgentConfig):
-    """Create a new agent"""
-    try:
-        agent_data = {
-            "name": agent_config.name,
-            "type": agent_config.type.value,
-            "description": agent_config.description,
-            "config": agent_config.config,
-            "status": AgentStatus.IDLE.value
-        }
-        
-        result = supabase.table("agents").insert(agent_data).execute()
-        if not result.data:
-            raise HTTPException(status_code=400, detail="Failed to create agent")
-        
-        return AgentResponse(**result.data[0])
-    except Exception as e:
-        logger.error(f"Error creating agent: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to create agent")
-
-@app.get("/agents/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: int):
-    """Get agent by ID"""
-    try:
-        agent = await get_agent_by_id(agent_id)
-        return AgentResponse(**agent)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching agent {agent_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch agent")
-
-@app.put("/agents/{agent_id}/status")
-async def update_agent_status_endpoint(agent_id: int, status: AgentStatus):
-    """Update agent status"""
-    try:
-        await get_agent_by_id(agent_id)  # Check if agent exists
-        await update_agent_status(agent_id, status)
-        return {"message": f"Agent {agent_id} status updated to {status.value}"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating agent {agent_id} status: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to update agent status")
-
-@app.delete("/agents/{agent_id}")
-async def delete_agent(agent_id: int):
-    """Delete an agent"""
-    try:
-        await get_agent_by_id(agent_id)  # Check if agent exists
-        supabase.table("agents").delete().eq("id", agent_id).execute()
-        return {"message": f"Agent {agent_id} deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting agent {agent_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to delete agent")
-
-# Task Management Endpoints
-@app.post("/tasks", response_model=TaskResponse)
-async def create_task(task_request: TaskRequest):
-    """Create a new task for an agent"""
-    try:
-        # Verify agent exists
-        await get_agent_by_id(task_request.agent_id)
-        
-        # Create agent log entry
-        log_entry = await create_agent_log(
-            agent_id=task_request.agent_id,
-            task_type=task_request.task_type,
-            status=TaskStatus.PENDING,
-            input_data=task_request.input_data
-        )
-        
-        if not log_entry:
-            raise HTTPException(status_code=400, detail="Failed to create task")
-        
-        return TaskResponse(**log_entry)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating task: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to create task")
-
-@app.get("/tasks", response_model=List[TaskResponse])
-async def get_tasks(agent_id: Optional[int] = None, status: Optional[TaskStatus] = None, limit: int = 100):
-    """Get tasks with optional filtering"""
-    try:
-        query = supabase.table("agent_logs").select("*")
-        
-        if agent_id:
-            query = query.eq("agent_id", agent_id)
-        if status:
-            query = query.eq("status", status.value)
-            
-        query = query.order("started_at", desc=True).limit(limit)
-        result = query.execute()
-        
-        return [TaskResponse(**task) for task in result.data]
-    except Exception as e:
-        logger.error(f"Error fetching tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch tasks")
-
-@app.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: int):
-    """Get task by ID"""
-    try:
-        result = supabase.table("agent_logs").select("*").eq("id", task_id).execute()
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Task not found")
-        
-        return TaskResponse(**result.data[0])
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching task {task_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch task")
-
-@app.put("/tasks/{task_id}/status")
-async def update_task_status(task_id: int, status: TaskStatus, 
-                           output_data: Optional[Dict[str, Any]] = None,
-                           error_message: Optional[str] = None,
-                           execution_time_ms: Optional[int] = None):
-    """Update task status and results"""
-    try:
-        # Check if task exists
-        result = supabase.table("agent_logs").select("*").eq("id", task_id).execute()
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Task not found")
-        
-        # Prepare update data
-        update_data = {
-            "status": status.value,
-            "updated_at": datetime.utcnow().isoformat()
-        }
-        
-        if output_data:
-            update_data["output_data"] = output_data
-        if error_message:
-            update_data["error_message"] = error_message
-        if execution_time_ms:
-            update_data["execution_time_ms"] = execution_time_ms
-        if status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-            update_data["completed_at"] = datetime.utcnow().isoformat()
-        
-        # Update task
-        supabase.table("agent_logs").update(update_data).eq("id", task_id).execute()
-        
-        return {"message": f"Task {task_id} status updated to {status.value}"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating task {task_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to update task")
-
-# Analytics Endpoints
-@app.get("/analytics/dashboard")
-async def get_dashboard_analytics():
-    """Get dashboard analytics"""
-    try:
-        # Get agent counts by status
-        agents_result = supabase.table("agents").select("status").execute()
-        agent_stats = {}
-        for agent in agents_result.data:
-            status = agent["status"]
-            agent_stats[status] = agent_stats.get(status, 0) + 1
-        
-        # Get recent task statistics
-        recent_tasks = supabase.table("agent_logs").select("status, started_at")\
-            .gte("started_at", (datetime.utcnow() - timedelta(days=7)).isoformat())\
-            .execute()
-        
-        task_stats = {}
-        for task in recent_tasks.data:
-            status = task["status"]
-            task_stats[status] = task_stats.get(status, 0) + 1
-        
-        # Get active campaigns count
-        campaigns_result = supabase.table("active_campaigns").select("id", count="exact").execute()
-        active_campaigns = campaigns_result.count or 0
-        
-        # Get leads pipeline summary
-        pipeline_result = supabase.table("lead_pipeline_summary").select("*").execute()
-        
-        return {
-            "agents": {
-                "total": len(agents_result.data),
-                "by_status": agent_stats
-            },
-            "tasks": {
-                "last_7_days": len(recent_tasks.data),
-                "by_status": task_stats
-            },
-            "campaigns": {
-                "active": active_campaigns
-            },
-            "pipeline": pipeline_result.data
-        }
-    except Exception as e:
-        logger.error(f"Error fetching dashboard analytics: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch analytics")
-
-# Agent Orchestration Background Task
-async def agent_orchestrator():
-    """Background task to manage agent lifecycle"""
-    while True:
+    async def load_campaigns(self):
+        """Load campaigns from Supabase on startup"""
         try:
-            logger.info("Running agent orchestration cycle...")
+            response = self.supabase.table('campaigns').select('*').execute()
+            for row in response.data:
+                campaign_data = json.loads(row['campaign_data'])
+                # Reconstruct campaign object
+                campaign = self._deserialize_campaign(campaign_data)
+                self.campaigns[campaign.id] = campaign
+            self.logger.info(f"Loaded {len(self.campaigns)} campaigns from database")
+        except Exception as e:
+            self.logger.error(f"Error loading campaigns: {str(e)}")
+    
+    async def save_campaign(self, campaign):
+        """Save campaign to Supabase"""
+        try:
+            campaign_data = {
+                'id': campaign.id,
+                'name': campaign.name,
+                'status': campaign.status.value,
+                'created_at': campaign.created_at.isoformat(),
+                'updated_at': campaign.updated_at.isoformat(),
+                'campaign_data': json.dumps(self._serialize_campaign(campaign), default=str)
+            }
             
-            # Get pending tasks
-            pending_tasks = supabase.table("agent_logs")\
-                .select("*, agents(*)")\
-                .eq("status", TaskStatus.PENDING.value)\
-                .order("started_at")\
-                .limit(10)\
-                .execute()
-            
-            for task in pending_tasks.data:
-                agent_id = task["agent_id"]
-                task_id = task["id"]
-                
-                try:
-                    # Update task to running
-                    supabase.table("agent_logs")\
-                        .update({"status": TaskStatus.RUNNING.value})\
-                        .eq("id", task_id)\
-                        .execute()
-                    
-                    # Update agent status
-                    await update_agent_status(agent_id, AgentStatus.RUNNING, datetime.utcnow())
-                    
-                    logger.info(f"Started task {task_id} for agent {agent_id}")
-                    
-                    # Here you would integrate with your actual agent execution logic
-                    # For now, we'll simulate task processing
-                    
-                except Exception as e:
-                    logger.error(f"Error processing task {task_id}: {str(e)}")
-                    
-                    # Update task to failed
-                    supabase.table("agent_logs")\
-                        .update({
-                            "status": TaskStatus.FAILED.value,
-                            "error_message": str(e),
-                            "completed_at": datetime.utcnow().isoformat()
-                        })\
-                        .eq("id", task_id)\
-                        .execute()
-            
-            # Sleep for 30 seconds before next cycle
-            await asyncio.sleep(30)
+            # Upsert campaign
+            self.supabase.table('campaigns').upsert(campaign_data).execute()
+            self.logger.info(f"Saved campaign {campaign.id} to database")
             
         except Exception as e:
-            logger.error(f"Error in orchestration cycle: {str(e)}")
-            await asyncio.sleep(60)  # Wait longer on error
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks on app startup"""
-    logger.info("Starting Wheels Wins AI Marketing Orchestrator...")
+            self.logger.error(f"Error saving campaign: {str(e)}")
     
-    # Start orchestrator in background (for production, use a proper task queue)
-    # asyncio.create_task(agent_orchestrator())
+    def _serialize_campaign(self, campaign):
+        """Convert campaign to serializable dict"""
+        return {
+            'id': campaign.id,
+            'name': campaign.name,
+            'objective': {
+                'type': campaign.objective.type,
+                'target_metric': campaign.objective.target_metric,
+                'target_value': campaign.objective.target_value,
+                'timeframe_days': campaign.objective.timeframe_days
+            },
+            'target_audience': {
+                'demographics': campaign.target_audience.demographics,
+                'interests': campaign.target_audience.interests,
+                'behaviors': campaign.target_audience.behaviors,
+                'company_size': campaign.target_audience.company_size,
+                'industry': campaign.target_audience.industry,
+                'job_titles': campaign.target_audience.job_titles
+            },
+            'channels': [c.value for c in campaign.channels],
+            'budget': campaign.budget,
+            'status': campaign.status.value,
+            'start_date': campaign.start_date.isoformat(),
+            'end_date': campaign.end_date.isoformat(),
+            'content_calendar': campaign.content_calendar,
+            'performance_metrics': campaign.performance_metrics,
+            'created_at': campaign.created_at.isoformat(),
+            'updated_at': campaign.updated_at.isoformat()
+        }
+    
+    def _deserialize_campaign(self, data):
+        """Convert dict back to campaign object"""
+        
+        objective = CampaignObjective(
+            type=data['objective']['type'],
+            target_metric=data['objective']['target_metric'],
+            target_value=data['objective']['target_value'],
+            timeframe_days=data['objective']['timeframe_days']
+        )
+        
+        target_audience = TargetAudience(
+            demographics=data['target_audience']['demographics'],
+            interests=data['target_audience']['interests'],
+            behaviors=data['target_audience']['behaviors'],
+            company_size=data['target_audience'].get('company_size'),
+            industry=data['target_audience'].get('industry'),
+            job_titles=data['target_audience'].get('job_titles', [])
+        )
+        
+        channels = [Channel(c) for c in data['channels']]
+        
+        return Campaign(
+            id=data['id'],
+            name=data['name'],
+            objective=objective,
+            target_audience=target_audience,
+            channels=channels,
+            budget=data['budget'],
+            status=CampaignStatus(data['status']),
+            start_date=datetime.fromisoformat(data['start_date']),
+            end_date=datetime.fromisoformat(data['end_date']),
+            content_calendar=data['content_calendar'],
+            performance_metrics=data['performance_metrics'],
+            created_at=datetime.fromisoformat(data['created_at']),
+            updated_at=datetime.fromisoformat(data['updated_at'])
+        )
+    
+    async def create_campaign(self, *args, **kwargs):
+        """Override to add persistence"""
+        campaign = await super().create_campaign(*args, **kwargs)
+        await self.save_campaign(campaign)
+        return campaign
+
+# Initialize persistent campaign agent
+campaign_agent = PersistentCampaignAgent(
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    integrations={
+        'sendgrid_api_key': os.getenv("SENDGRID_API_KEY"),
+        'linkedin_api_key': os.getenv("LINKEDIN_API_KEY"),
+        'facebook_api_key': os.getenv("FACEBOOK_API_KEY"),
+        'google_ads_api_key': os.getenv("GOOGLE_ADS_API_KEY"),
+        'twitter_api_key': os.getenv("TWITTER_API_KEY"),
+    },
+    supabase_client=supabase
+)
+
+# Authentication dependency
+async def get_current_user(authorization: str = Header(None)):
+    """Validate user token from Supabase"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    try:
+        # Extract token from "Bearer <token>"
+        token = authorization.split(" ")[1] if authorization.startswith("Bearer ") else authorization
+        
+        # Verify token with Supabase
+        user = supabase.auth.get_user(token)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        return user.user
+        
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+# Pydantic Models
+class CreateCampaignRequest(BaseModel):
+    name: str
+    objective_type: str  # lead_generation, brand_awareness, conversion, retention
+    target_metric: str  # leads, impressions, clicks, revenue
+    target_value: float
+    timeframe_days: int
+    channels: List[str]  # email, linkedin, facebook, google_ads, twitter
+    budget_total: float
+    budget_daily: float
+    target_audience: Dict[str, Any]
+    duration_days: int
+
+class CampaignResponse(BaseModel):
+    id: str
+    name: str
+    status: str
+    created_at: str
+    start_date: str
+    end_date: str
+    budget: Dict[str, float]
+    channels: List[str]
+    performance_metrics: Dict[str, Any]
+
+# Campaign Endpoints
+
+@app.post("/api/campaigns", response_model=CampaignResponse)
+async def create_campaign(request: CreateCampaignRequest, user=Depends(get_current_user)):
+    """Create a new marketing campaign"""
+    
+    try:
+        # Create objective
+        objective = CampaignObjective(
+            type=request.objective_type,
+            target_metric=request.target_metric,
+            target_value=request.target_value,
+            timeframe_days=request.timeframe_days
+        )
+        
+        # Create target audience
+        target_audience = TargetAudience(
+            demographics=request.target_audience.get('demographics', {}),
+            interests=request.target_audience.get('interests', []),
+            behaviors=request.target_audience.get('behaviors', []),
+            company_size=request.target_audience.get('company_size'),
+            industry=request.target_audience.get('industry'),
+            job_titles=request.target_audience.get('job_titles', [])
+        )
+        
+        # Convert channel strings to enums
+        channels = [Channel(channel) for channel in request.channels]
+        
+        # Create budget dict
+        budget = {
+            'total': request.budget_total,
+            'daily': request.budget_daily,
+            'per_channel': request.budget_total / len(channels)
+        }
+        
+        # Create campaign
+        campaign = await campaign_agent.create_campaign(
+            name=request.name,
+            objective=objective,
+            target_audience=target_audience,
+            budget=budget,
+            channels=channels,
+            duration_days=request.duration_days
+        )
+        
+        return CampaignResponse(
+            id=campaign.id,
+            name=campaign.name,
+            status=campaign.status.value,
+            created_at=campaign.created_at.isoformat(),
+            start_date=campaign.start_date.isoformat(),
+            end_date=campaign.end_date.isoformat(),
+            budget=campaign.budget,
+            channels=[c.value for c in campaign.channels],
+            performance_metrics=campaign.performance_metrics
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to create campaign: {str(e)}")
+
+@app.get("/api/campaigns", response_model=List[CampaignResponse])
+async def get_campaigns(user=Depends(get_current_user)):
+    """Get all campaigns"""
+    
+    campaigns = []
+    for campaign in campaign_agent.campaigns.values():
+        campaigns.append(CampaignResponse(
+            id=campaign.id,
+            name=campaign.name,
+            status=campaign.status.value,
+            created_at=campaign.created_at.isoformat(),
+            start_date=campaign.start_date.isoformat(),
+            end_date=campaign.end_date.isoformat(),
+            budget=campaign.budget,
+            channels=[c.value for c in campaign.channels],
+            performance_metrics=campaign.performance_metrics
+        ))
+    
+    return campaigns
+
+@app.get("/api/campaigns/{campaign_id}", response_model=CampaignResponse)
+async def get_campaign(campaign_id: str, user=Depends(get_current_user)):
+    """Get specific campaign details"""
+    
+    campaign = campaign_agent.campaigns.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    return CampaignResponse(
+        id=campaign.id,
+        name=campaign.name,
+        status=campaign.status.value,
+        created_at=campaign.created_at.isoformat(),
+        start_date=campaign.start_date.isoformat(),
+        end_date=campaign.end_date.isoformat(),
+        budget=campaign.budget,
+        channels=[c.value for c in campaign.channels],
+        performance_metrics=campaign.performance_metrics
+    )
+
+@app.post("/api/campaigns/{campaign_id}/launch")
+async def launch_campaign(campaign_id: str, user=Depends(get_current_user)):
+    """Launch a campaign"""
+    
+    try:
+        success = await campaign_agent.launch_campaign(campaign_id)
+        if success:
+            # Save updated campaign status
+            campaign = campaign_agent.campaigns[campaign_id]
+            await campaign_agent.save_campaign(campaign)
+            
+            return {"message": f"Campaign {campaign_id} launched successfully", "status": "active"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to launch campaign")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error launching campaign: {str(e)}")
+
+@app.post("/api/campaigns/{campaign_id}/pause")
+async def pause_campaign(campaign_id: str, user=Depends(get_current_user)):
+    """Pause a campaign"""
+    
+    campaign = campaign_agent.campaigns.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    campaign.status = CampaignStatus.PAUSED
+    campaign.updated_at = datetime.now()
+    
+    # Save to database
+    await campaign_agent.save_campaign(campaign)
+    
+    return {"message": f"Campaign {campaign_id} paused", "status": "paused"}
+
+@app.get("/api/campaigns/{campaign_id}/performance")
+async def get_campaign_performance(campaign_id: str, user=Depends(get_current_user)):
+    """Get real-time campaign performance data"""
+    
+    campaign = campaign_agent.campaigns.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Get fresh performance data
+    if campaign.status == CampaignStatus.ACTIVE:
+        performance_data = await campaign_agent._collect_performance_data(campaign)
+        campaign.performance_metrics = performance_data
+        await campaign_agent.save_campaign(campaign)
+    
+    return {
+        "campaign_id": campaign_id,
+        "performance": campaign.performance_metrics,
+        "last_updated": campaign.updated_at.isoformat()
+    }
+
+@app.get("/api/campaigns/{campaign_id}/content-calendar")
+async def get_content_calendar(campaign_id: str, user=Depends(get_current_user)):
+    """Get campaign content calendar"""
+    
+    campaign = campaign_agent.campaigns.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    return {
+        "campaign_id": campaign_id,
+        "content_calendar": campaign.content_calendar
+    }
+
+@app.get("/api/campaigns/{campaign_id}/report")
+async def get_campaign_report(campaign_id: str, user=Depends(get_current_user)):
+    """Generate comprehensive campaign report with AI insights"""
+    
+    try:
+        report = await campaign_agent.get_campaign_report(campaign_id)
+        return report
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
+
+@app.post("/api/campaigns/{campaign_id}/optimize")
+async def optimize_campaign(campaign_id: str, user=Depends(get_current_user)):
+    """Get AI optimization recommendations for campaign"""
+    
+    campaign = campaign_agent.campaigns.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    try:
+        # Get current performance data
+        performance_data = await campaign_agent._collect_performance_data(campaign)
+        
+        # Generate optimizations
+        optimizations = await campaign_agent._generate_optimizations(campaign, performance_data)
+        
+        return {
+            "campaign_id": campaign_id,
+            "current_performance": performance_data,
+            "optimizations": optimizations,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating optimizations: {str(e)}")
+
+# Dashboard Analytics Endpoints
+
+@app.get("/api/dashboard/campaign-overview")
+async def get_campaign_overview(user=Depends(get_current_user)):
+    """Get high-level campaign overview for dashboard"""
+    
+    total_campaigns = len(campaign_agent.campaigns)
+    active_campaigns = len([c for c in campaign_agent.campaigns.values() if c.status == CampaignStatus.ACTIVE])
+    total_spend = sum([c.performance_metrics.get('overall', {}).get('total_spend', 0) for c in campaign_agent.campaigns.values()])
+    total_conversions = sum([c.performance_metrics.get('overall', {}).get('total_conversions', 0) for c in campaign_agent.campaigns.values()])
+    
+    return {
+        "total_campaigns": total_campaigns,
+        "active_campaigns": active_campaigns,
+        "total_spend": total_spend,
+        "total_conversions": total_conversions,
+        "avg_conversion_rate": (total_conversions / max(total_spend, 1)) * 100 if total_spend > 0 else 0,
+        "campaigns": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "status": c.status.value,
+                "performance": c.performance_metrics.get('overall', {})
+            }
+            for c in campaign_agent.campaigns.values()
+        ]
+    }
+
+# Legacy Agent Endpoints (keep your existing ones)
+
+class Agent(BaseModel):
+    id: str
+    name: str
+    description: str
+    status: str
+
+@app.get("/api/agents")
+async def get_agents():
+    """Get all agents"""
+    return [
+        Agent(id="1", name="Lead Generator", description="Finds potential customers", status="active"),
+        Agent(id="2", name="Content Creator", description="Creates marketing content", status="active"),
+        Agent(id="3", name="Social Media Manager", description="Manages social media posts", status="inactive")
+    ]
+
+@app.post("/api/agents")
+async def create_agent(agent: Agent):
+    """Create a new agent"""
+    return {"message": "Agent created successfully", "agent": agent}
+
+@app.get("/api/agents/{agent_id}")
+async def get_agent(agent_id: str):
+    """Get specific agent"""
+    return Agent(id=agent_id, name="Sample Agent", description="Sample description", status="active")
+
+@app.post("/api/agents/{agent_id}/chat")
+async def chat_with_agent(agent_id: str, message: dict):
+    """Chat with an agent"""
+    return {
+        "response": f"Agent {agent_id} received: {message.get('message', '')}",
+        "timestamp": datetime.now().isoformat()
+    }
+
+# Health check endpoint (no auth required)
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 if __name__ == "__main__":
     import uvicorn
