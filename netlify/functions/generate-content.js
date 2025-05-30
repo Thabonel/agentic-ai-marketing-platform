@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  'https://kc1uuxoqxfsogjuqflou.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjaXV1eG9xeGZzb2dqdXFmbG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0Mzg4MDMsImV4cCI6MjA2NDAxNDgwM30.xLArvJytF37HKDMnr8O1euf_t_M_iRFy55_D9CI1DC0'
+  
 );
 
 class ContentCreationTool {
