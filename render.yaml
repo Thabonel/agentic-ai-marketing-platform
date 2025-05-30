@@ -1,16 +1,48 @@
 services:
   - type: web
-    name: wheels-wins-orchestrator
+    name: ai-marketing-automation
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: python main.py
+    plan: starter
     envVars:
+      - key: OPENAI_API_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: LINKEDIN_API_KEY
+        sync: false
+      - key: FACEBOOK_API_KEY
+        sync: false
+      - key: GOOGLE_ADS_API_KEY
+        sync: false
+      - key: TWITTER_API_KEY
+        sync: false
+      - key: LINKEDIN_ACCESS_TOKEN
+        sync: false
+      - key: LINKEDIN_PERSON_ID
+        sync: false
+      - key: TWITTER_BEARER_TOKEN
+        sync: false
+      - key: FACEBOOK_ACCESS_TOKEN
+        sync: false
+      - key: FACEBOOK_PAGE_ID
+        sync: false
+      - key: INSTAGRAM_ACCESS_TOKEN
+        sync: false
+      - key: INSTAGRAM_USER_ID
+        sync: false
+      - key: EMAIL_SERVICE
+        value: sendgrid
+      - key: FROM_EMAIL
+        value: noreply@yourdomain.com
+      - key: FROM_NAME
+        value: Your Company Name
       - key: ENVIRONMENT
         value: production
-    healthCheckPath: /
-    autoDeploy: true
-    branch: main
+      - key: LOG_LEVEL
+        value: INFO
