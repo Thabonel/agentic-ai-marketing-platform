@@ -30,14 +30,40 @@ load_dotenv()
 
 app = FastAPI(title="AI Marketing Automation Suite", version="2.0.0")
 
-# CORS middleware
+# Configure CORS with specific origins
+origins = [
+    "https://aiboostcampaign.com",
+    "https://www.aiboostcampaign.com",  # Include www version
+    "http://localhost:3000",            # For local React development
+    "http://localhost:5173",            # For Vite development
+    "http://localhost:5174",            # Alternative Vite port
+]
+
+# Add additional origins from environment variable if needed
+additional_origins = os.getenv("CORS_ORIGINS", "")
+if additional_origins:
+    origins.extend([origin.strip() for origin in additional_origins.split(",") if origin.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
+
+# Optional: Add logging middleware to debug CORS issues
+@app.middleware("http")
+async def log_requests(request, call_next):
+    # Log requests in development mode
+    if os.getenv("ENVIRONMENT") != "production":
+        origin = request.headers.get("origin", "No origin")
+        print(f"{request.method} {request.url.path} - Origin: {origin}")
+    
+    response = await call_next(request)
+    return response
 
 # Initialize Supabase
 supabase: Client = create_client(
@@ -167,6 +193,8 @@ async def health_check():
             "analytics_agent": "active",
             "email_agent": "active"
         },
+        "cors_origins": origins,
+        "environment": os.getenv("ENVIRONMENT", "development"),
         "timestamp": datetime.now().isoformat()
     }
 
@@ -1247,6 +1275,7 @@ async def startup_event():
     print("✅ Analytics Agent initialized")
     print("✅ Email Automation Agent initialized")
     print("🎯 All 6 agents are ready!")
+    print(f"📌 CORS enabled for: {', '.join(origins)}")
 
 if __name__ == "__main__":
     import uvicorn
