@@ -34,6 +34,7 @@ app = FastAPI(title="AI Marketing Automation Suite", version="2.0.0")
 origins = [
     "https://aiboostcampaign.com",
     "https://www.aiboostcampaign.com",  # Include www version
+    "https://main--agentic-ai-marketing.netlify.app",  # Add frontend URL
     "http://localhost:3000",            # For local React development
     "http://localhost:5173",            # For Vite development
     "http://localhost:5174",            # Alternative Vite port
